@@ -59,15 +59,45 @@ pub fn hide_preview_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub fn get_app_config() -> Result<serde_json::Value, String> {
+fn get_config_path() -> Result<std::path::PathBuf, String> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(exe_dir) = exe.parent() {
+            if exe_dir.join("portable.txt").exists() {
+                return Ok(exe_dir.join("config.json"));
+            }
+        }
+    }
     let proj_dirs = directories::ProjectDirs::from("com", "peekit", "Peekit")
         .ok_or("Could not determine config path")?;
-    let config_path = proj_dirs.config_dir().join("config.json");
+    let config_dir = proj_dirs.config_dir();
+    let _ = std::fs::create_dir_all(config_dir);
+    Ok(config_dir.join("config.json"))
+}
+
+#[tauri::command]
+pub fn get_app_config() -> Result<serde_json::Value, String> {
+    let config_path = get_config_path()?;
 
     if config_path.exists() {
-        let content = std::fs::read_to_string(config_path).map_err(|e| e.to_string())?;
-        serde_json::from_str(&content).map_err(|e| e.to_string())
+        let content = std::fs::read_to_string(&config_path).map_err(|e| e.to_string())?;
+        let mut val: serde_json::Value = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+        let defaults = serde_json::json!({
+            "language": "ru",
+            "theme": "dark",
+            "autostart": true,
+            "closeOnFocusLoss": false,
+            "autoplayMedia": true,
+            "volume": 0.8,
+            "stayOnTop": false
+        });
+        if let (Some(val_obj), Some(def_obj)) = (val.as_object_mut(), defaults.as_object()) {
+            for (k, v) in def_obj {
+                if !val_obj.contains_key(k) {
+                    val_obj.insert(k.clone(), v.clone());
+                }
+            }
+        }
+        Ok(val)
     } else {
         Ok(serde_json::json!({
             "language": "ru",
@@ -83,14 +113,29 @@ pub fn get_app_config() -> Result<serde_json::Value, String> {
 
 #[tauri::command]
 pub fn save_app_config(config: serde_json::Value) -> Result<(), String> {
-    let proj_dirs = directories::ProjectDirs::from("com", "peekit", "Peekit")
-        .ok_or("Could not determine config path")?;
-    let config_dir = proj_dirs.config_dir();
-    std::fs::create_dir_all(config_dir).map_err(|e| e.to_string())?;
-    let config_path = config_dir.join("config.json");
+    let config_path = get_config_path()?;
+    if let Some(parent) = config_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
 
-    let formatted = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    std::fs::write(config_path, formatted).map_err(|e| e.to_string())?;
+    let mut merged: serde_json::Value = if config_path.exists() {
+        let content = std::fs::read_to_string(&config_path).unwrap_or_default();
+        serde_json::from_str(&content).unwrap_or_else(|_| serde_json::json!({}))
+    } else {
+        serde_json::json!({})
+    };
+
+    if let (Some(dest), Some(src)) = (merged.as_object_mut(), config.as_object()) {
+        for (k, v) in src {
+            dest.insert(k.clone(), v.clone());
+        }
+    } else {
+        merged = config;
+    }
+
+    let formatted = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
+    std::fs::write(&config_path, formatted).map_err(|e| e.to_string())?;
+    crate::log_debug(&format!("Saved app config to {:?}", config_path));
     Ok(())
 }
 

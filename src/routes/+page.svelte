@@ -15,6 +15,7 @@
   import SettingsModal from '$lib/components/SettingsModal.svelte';
   import PluginHost from '$lib/components/PluginHost.svelte';
   import { pluginRegistry } from '$lib/stores/plugins.svelte';
+  import { enable as enableAutostart, disable as disableAutostart, isEnabled as isAutostartEnabled } from '@tauri-apps/plugin-autostart';
 
   // State
   let currentFile: FilePreviewInfo | null = null;
@@ -158,17 +159,40 @@
     }
   }
 
-  function saveSettings(updated: AppSettings) {
-    settings = updated;
+  const handleWindowBlur = () => {
+    if (settings.closeOnFocusLoss && !isSettingsOpen && !isPinned && currentFile) {
+      closeWindow();
+    }
+  };
+
+  async function saveSettings(updated: AppSettings) {
+    settings = { ...updated };
     $currentLanguage = updated.language;
     $currentTheme = updated.theme;
     applyTheme(updated.theme);
-    invokeTauri('save_app_config', { config: updated });
+
+    if (updated.stayOnTop !== isPinned) {
+      isPinned = updated.stayOnTop;
+      await invokeTauri('toggle_pin_window', { pin: isPinned });
+    }
+
+    try {
+      if (updated.autostart) {
+        await enableAutostart();
+      } else {
+        await disableAutostart();
+      }
+    } catch (e) {
+      console.warn('[Autostart] Failed to set autostart:', e);
+    }
+
+    await invokeTauri('save_app_config', { config: updated });
     handleCloseSettings();
   }
 
   onMount(async () => {
     window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('blur', handleWindowBlur);
 
     // Initial config load
     const savedConfig = await invokeTauri('get_app_config');
@@ -177,8 +201,21 @@
       $currentLanguage = settings.language;
       $currentTheme = settings.theme;
       applyTheme(settings.theme);
+
+      if (settings.stayOnTop) {
+        isPinned = true;
+        await invokeTauri('toggle_pin_window', { pin: true });
+      }
     } else {
       applyTheme('dark');
+    }
+
+    // Sync actual system autostart state
+    try {
+      const autoActive = await isAutostartEnabled();
+      settings.autostart = autoActive;
+    } catch (e) {
+      console.warn('[Autostart] Check failed:', e);
     }
 
     // Load installed plugins
@@ -232,6 +269,7 @@
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('blur', handleWindowBlur);
     }
     if (unlistenPreview) unlistenPreview();
     if (unlistenGroup) unlistenGroup();
@@ -393,12 +431,14 @@
   </footer>
 
   <!-- Preferences Modal -->
-  <SettingsModal
-    settings={settings}
-    isOpen={isSettingsOpen}
-    onClose={handleCloseSettings}
-    onSave={saveSettings}
-  />
+  {#if isSettingsOpen}
+    <SettingsModal
+      settings={settings}
+      isOpen={isSettingsOpen}
+      onClose={handleCloseSettings}
+      onSave={saveSettings}
+    />
+  {/if}
 </main>
 
 <style>

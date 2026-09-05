@@ -8,11 +8,17 @@
   export let onClose: () => void;
   export let onSave: (updated: AppSettings) => void;
 
-  let localSettings = { ...settings };
+  let localSettings: AppSettings = { ...settings };
   let activeTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
 
+  let wasOpen = false;
+  $: if (isOpen && !wasOpen) {
+    localSettings = { ...settings };
+  }
+  $: wasOpen = isOpen;
+
   function saveAndClose() {
-    onSave(localSettings);
+    onSave({ ...localSettings });
     onClose();
   }
 </script>
