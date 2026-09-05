@@ -9,6 +9,7 @@
 
   let installMessage = '';
   let installError = '';
+  let fileInput: HTMLInputElement;
 
   function handleOpenFolder() {
     pluginRegistry.openPluginsFolder();
@@ -18,10 +19,29 @@
     pluginRegistry.loadPlugins();
   }
 
+  async function handleFileChange(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      const filePath = (file as any).path;
+      if (filePath) {
+        try {
+          const info = await pluginRegistry.installPluginPackage(filePath);
+          installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
+          setTimeout(() => { installMessage = ''; }, 4000);
+        } catch (e: any) {
+          installError = e?.toString() || 'Ошибка установки';
+          setTimeout(() => { installError = ''; }, 5000);
+        }
+      }
+    }
+    input.value = '';
+  }
+
   async function handleInstallPkit() {
+    installMessage = '';
+    installError = '';
     try {
-      installMessage = '';
-      installError = '';
       const selected = await open({
         multiple: false,
         filters: [{
@@ -36,20 +56,32 @@
         setTimeout(() => { installMessage = ''; }, 4000);
       }
     } catch (e: any) {
-      installError = e?.toString() || 'Ошибка установки';
-      setTimeout(() => { installError = ''; }, 5000);
+      console.warn('Dialog plugin open failed, checking fallback:', e);
+      if (fileInput) {
+        fileInput.click();
+      } else {
+        installError = e?.toString() || 'Ошибка установки';
+        setTimeout(() => { installError = ''; }, 5000);
+      }
     }
   }
 </script>
 
+<input
+  bind:this={fileInput}
+  type="file"
+  accept=".pkit,.zip"
+  style="display: none;"
+  on:change={handleFileChange}
+/>
+
 <div class="plugins-tab">
   <div class="tab-toolbar">
-    <div class="toolbar-text">
-      <div class="tab-desc">{t('plugins_desc', lang)}</div>
-    </div>
+    <div class="tab-desc">{t('plugins_desc', lang)}</div>
+
     <div class="toolbar-actions">
-      <button class="action-btn primary" on:click={handleInstallPkit} title={t('plugins_install_btn', lang)}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+      <button class="action-btn primary full-width" on:click={handleInstallPkit} title={t('plugins_install_btn', lang)}>
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <polyline points="7 10 12 15 17 10" />
           <line x1="12" y1="15" x2="12" y2="3" />
@@ -57,19 +89,22 @@
         <span>{t('plugins_install_btn', lang)}</span>
       </button>
 
-      <button class="action-btn" on:click={handleOpenFolder} title={t('plugins_open_folder', lang)}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-        <span>{t('plugins_open_folder', lang)}</span>
-      </button>
+      <div class="sub-actions">
+        <button class="action-btn folder-btn" on:click={handleOpenFolder} title={t('plugins_open_folder', lang)}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          </svg>
+          <span>{t('plugins_open_folder', lang)}</span>
+        </button>
 
-      <button class="action-btn icon-only" on:click={handleRefresh} title={t('plugins_refresh', lang)}>
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="23 4 23 10 17 10" />
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-        </svg>
-      </button>
+        <button class="action-btn refresh-btn" on:click={handleRefresh} title={t('plugins_refresh', lang)}>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+          <span>{lang === 'ru' ? 'Обновить' : 'Refresh'}</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -140,8 +175,7 @@
 
   .tab-toolbar {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
     gap: 12px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
@@ -150,13 +184,37 @@
   .tab-desc {
     font-size: 12px;
     color: var(--text-muted);
+    line-height: 1.4;
   }
 
   .toolbar-actions {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
-    flex-shrink: 0;
+    width: 100%;
+  }
+
+  .sub-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .action-btn.full-width {
+    width: 100%;
+    justify-content: center;
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+
+  .action-btn.folder-btn {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .action-btn.refresh-btn {
+    justify-content: center;
+    padding: 6px 12px;
   }
 
   .action-btn {
@@ -209,9 +267,6 @@
     color: #ef4444;
   }
 
-  .action-btn.icon-only {
-    padding: 6px 8px;
-  }
 
   .plugins-list {
     display: flex;

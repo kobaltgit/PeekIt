@@ -169,8 +169,8 @@
     border: 1px solid var(--border-color);
     box-shadow: var(--shadow-elevation);
     border-radius: 14px;
-    width: 480px;
-    max-width: 90vw;
+    width: 520px;
+    max-width: 92vw;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -238,8 +238,9 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-    max-height: 380px;
+    max-height: 420px;
     overflow-y: auto;
+    overflow-x: hidden;
   }
 
   .setting-item {
