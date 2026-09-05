@@ -178,3 +178,10 @@ pub fn set_plugin_enabled(id: String, enabled: bool) -> Result<(), String> {
     save_app_config(config)
 }
 
+#[tauri::command]
+pub fn install_plugin(package_path: String) -> Result<crate::plugins::manifest::PluginInfo, String> {
+    let p = std::path::Path::new(&package_path);
+    crate::plugins::scanner::install_plugin_package(p)
+}
+
+

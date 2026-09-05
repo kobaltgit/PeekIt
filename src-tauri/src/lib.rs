@@ -59,9 +59,28 @@ pub fn run() {
             commands::open_plugins_folder,
             commands::read_binary_for_plugin,
             commands::set_plugin_enabled,
+            commands::install_plugin,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");
+
+            // Check command line arguments for .pkit files (double-click from Windows Explorer)
+            for arg in std::env::args().skip(1) {
+                if arg.to_lowercase().ends_with(".pkit") {
+                    let p = std::path::PathBuf::from(&arg);
+                    if p.exists() {
+                        crate::log_debug(&format!("Found .pkit argument on startup: {:?}", p));
+                        match crate::plugins::scanner::install_plugin_package(&p) {
+                            Ok(info) => {
+                                crate::log_debug(&format!("[PKit] Successfully installed plugin '{}'", info.manifest.name));
+                            }
+                            Err(e) => {
+                                crate::log_debug(&format!("[PKit] Failed to install package: {}", e));
+                            }
+                        }
+                    }
+                }
+            }
 
             let icon = if let Some(icon) = app.default_window_icon().cloned() {
                 icon

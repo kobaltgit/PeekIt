@@ -85,6 +85,8 @@ export const translations = {
     plugins_extensions: 'Расширения',
     plugins_by: 'Автор',
     plugins_version: 'Версия',
+    plugins_install_btn: 'Установить плагин (.pkit)',
+    plugins_installed_success: 'Плагин успешно установлен!',
 
     save: 'Сохранить',
     close_settings: 'Закрыть',
@@ -173,6 +175,8 @@ export const translations = {
     plugins_extensions: 'Extensions',
     plugins_by: 'Author',
     plugins_version: 'Version',
+    plugins_install_btn: 'Install Plugin (.pkit)',
+    plugins_installed_success: 'Plugin installed successfully!',
 
     save: 'Save',
     close_settings: 'Close',

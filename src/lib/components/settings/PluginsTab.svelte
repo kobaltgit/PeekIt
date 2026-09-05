@@ -3,7 +3,12 @@
   import { t } from '$lib/i18n';
   import { pluginRegistry } from '$lib/stores/plugins.svelte';
 
+  import { open } from '@tauri-apps/plugin-dialog';
+
   export let lang: AppLanguage = 'ru';
+
+  let installMessage = '';
+  let installError = '';
 
   function handleOpenFolder() {
     pluginRegistry.openPluginsFolder();
@@ -11,6 +16,29 @@
 
   function handleRefresh() {
     pluginRegistry.loadPlugins();
+  }
+
+  async function handleInstallPkit() {
+    try {
+      installMessage = '';
+      installError = '';
+      const selected = await open({
+        multiple: false,
+        filters: [{
+          name: 'PeekIt Plugin (.pkit, .zip)',
+          extensions: ['pkit', 'zip']
+        }]
+      });
+
+      if (selected && typeof selected === 'string') {
+        const info = await pluginRegistry.installPluginPackage(selected);
+        installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
+        setTimeout(() => { installMessage = ''; }, 4000);
+      }
+    } catch (e: any) {
+      installError = e?.toString() || 'Ошибка установки';
+      setTimeout(() => { installError = ''; }, 5000);
+    }
   }
 </script>
 
@@ -20,6 +48,15 @@
       <div class="tab-desc">{t('plugins_desc', lang)}</div>
     </div>
     <div class="toolbar-actions">
+      <button class="action-btn primary" on:click={handleInstallPkit} title={t('plugins_install_btn', lang)}>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        <span>{t('plugins_install_btn', lang)}</span>
+      </button>
+
       <button class="action-btn" on:click={handleOpenFolder} title={t('plugins_open_folder', lang)}>
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -35,6 +72,13 @@
       </button>
     </div>
   </div>
+
+  {#if installMessage}
+    <div class="status-banner success">{installMessage}</div>
+  {/if}
+  {#if installError}
+    <div class="status-banner error">{installError}</div>
+  {/if}
 
   <div class="plugins-list">
     {#if pluginRegistry.isLoading}
@@ -131,8 +175,38 @@
 
   .action-btn:hover {
     background: var(--bg-hover);
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--text-muted);
+  }
+
+  .action-btn.primary {
+    background: var(--accent, #3b82f6);
+    color: #ffffff;
+    border-color: var(--accent, #3b82f6);
+    font-weight: 500;
+  }
+
+  .action-btn.primary:hover {
+    filter: brightness(1.1);
+    background: var(--accent, #3b82f6);
+  }
+
+  .status-banner {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  .status-banner.success {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    color: #10b981;
+  }
+
+  .status-banner.error {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #ef4444;
   }
 
   .action-btn.icon-only {

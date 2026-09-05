@@ -46,6 +46,12 @@ class PluginRegistry {
       console.error('[PluginRegistry] Failed to open plugins folder:', e);
     }
   }
+
+  async installPluginPackage(packagePath: string): Promise<PluginInfo> {
+    const installed = await invoke<PluginInfo>('install_plugin', { packagePath });
+    await this.loadPlugins();
+    return installed;
+  }
 }
 
 export const pluginRegistry = new PluginRegistry();

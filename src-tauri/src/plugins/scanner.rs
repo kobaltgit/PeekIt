@@ -206,6 +206,97 @@ pub fn scan_plugins(disabled_plugin_ids: &[String]) -> Vec<PluginInfo> {
     plugins
 }
 
+/// Installs a .pkit (or .zip) plugin package into the active plugins directory.
+pub fn install_plugin_package(package_path: &Path) -> Result<PluginInfo, String> {
+    if !package_path.exists() {
+        return Err(format!("Package file not found: {:?}", package_path));
+    }
+
+    let file = fs::File::open(package_path)
+        .map_err(|e| format!("Failed to open package file: {}", e))?;
+    let mut archive = zip::ZipArchive::new(file)
+        .map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+
+    // Find manifest.json in archive (either at root or in top-level directory)
+    let mut manifest_index = None;
+    let mut prefix_to_strip = String::new();
+
+    for i in 0..archive.len() {
+        let entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = entry.name().replace('\\', "/");
+        if name == "manifest.json" {
+            manifest_index = Some(i);
+            prefix_to_strip = String::new();
+            break;
+        } else if name.ends_with("/manifest.json") && name.matches('/').count() == 1 {
+            manifest_index = Some(i);
+            let parts: Vec<&str> = name.split('/').collect();
+            prefix_to_strip = format!("{}/", parts[0]);
+            break;
+        }
+    }
+
+    let manifest_idx = manifest_index.ok_or_else(|| "Invalid plugin package: manifest.json not found in archive".to_string())?;
+
+    // Parse manifest to get plugin id and name
+    let manifest: PluginManifest = {
+        let mut manifest_file = archive.by_index(manifest_idx).map_err(|e| e.to_string())?;
+        let mut content = String::new();
+        std::io::Read::read_to_string(&mut manifest_file, &mut content).map_err(|e| e.to_string())?;
+        serde_json::from_str(&content).map_err(|e| format!("Failed to parse manifest.json: {}", e))?
+    };
+
+    let plugin_id = manifest.id.clone();
+    let plugins_dir = ensure_plugins_dir()?;
+    let target_dir = plugins_dir.join(&plugin_id);
+
+    if target_dir.exists() {
+        let _ = fs::remove_dir_all(&target_dir);
+    }
+    fs::create_dir_all(&target_dir)
+        .map_err(|e| format!("Failed to create plugin target dir {:?}: {}", target_dir, e))?;
+
+    // Extract files into target_dir
+    for i in 0..archive.len() {
+        let mut entry = archive.by_index(i).map_err(|e| e.to_string())?;
+        let raw_name = entry.name().replace('\\', "/");
+
+        let rel_name = if !prefix_to_strip.is_empty() && raw_name.starts_with(&prefix_to_strip) {
+            &raw_name[prefix_to_strip.len()..]
+        } else {
+            &raw_name
+        };
+
+        if rel_name.is_empty() {
+            continue;
+        }
+
+        let out_path = target_dir.join(rel_name);
+
+        if entry.is_dir() {
+            fs::create_dir_all(&out_path).map_err(|e| e.to_string())?;
+        } else {
+            if let Some(parent) = out_path.parent() {
+                if !parent.exists() {
+                    fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+            }
+            let mut out_file = fs::File::create(&out_path)
+                .map_err(|e| format!("Failed to create file {:?}: {}", out_path, e))?;
+            std::io::copy(&mut entry, &mut out_file)
+                .map_err(|e| format!("Failed to write file {:?}: {}", out_path, e))?;
+        }
+    }
+
+    crate::log_debug(&format!("[PluginScanner] Successfully installed plugin '{}' ({}) into {:?}", manifest.name, manifest.id, target_dir));
+
+    Ok(PluginInfo {
+        manifest,
+        root_path: target_dir.to_string_lossy().to_string(),
+        is_enabled: true,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
