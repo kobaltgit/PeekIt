@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AppSettings, AppLanguage, AppTheme } from '../types';
   import { t } from '../i18n';
+  import PluginsTab from './settings/PluginsTab.svelte';
 
   export let settings: AppSettings;
   export let isOpen: boolean = false;
@@ -8,7 +9,7 @@
   export let onSave: (updated: AppSettings) => void;
 
   let localSettings = { ...settings };
-  let activeTab: 'general' | 'appearance' | 'about' = 'general';
+  let activeTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
 
   function saveAndClose() {
     onSave(localSettings);
@@ -42,6 +43,12 @@
           on:click={() => (activeTab = 'appearance')}
         >
           {t('appearance_tab', localSettings.language)}
+        </button>
+        <button
+          class="tab-link {activeTab === 'plugins' ? 'active' : ''}"
+          on:click={() => (activeTab = 'plugins')}
+        >
+          {t('plugins_tab', localSettings.language)}
         </button>
         <button
           class="tab-link {activeTab === 'about' ? 'active' : ''}"
@@ -114,6 +121,8 @@
               </button>
             </div>
           </div>
+        {:else if activeTab === 'plugins'}
+          <PluginsTab lang={localSettings.language} />
         {:else if activeTab === 'about'}
           <div class="about-section">
             <h3>Peekit v1.0.0</h3>

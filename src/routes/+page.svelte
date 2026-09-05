@@ -13,13 +13,22 @@
   import ArchivePreview from '$lib/components/ArchivePreview.svelte';
   import GenericPreview from '$lib/components/GenericPreview.svelte';
   import SettingsModal from '$lib/components/SettingsModal.svelte';
+  import PluginHost from '$lib/components/PluginHost.svelte';
+  import { pluginRegistry } from '$lib/stores/plugins.svelte';
 
   // State
   let currentFile: FilePreviewInfo | null = null;
+  let activePlugin: PluginInfo | undefined = undefined;
   let textContent = '';
   let isPinned = false;
   let isSettingsOpen = false;
   let copyFeedback = false;
+
+  $: if (currentFile) {
+    activePlugin = pluginRegistry.findPluginForFile(currentFile.extension);
+  } else {
+    activePlugin = undefined;
+  }
 
   let settings: AppSettings = {
     language: 'ru',
@@ -67,6 +76,7 @@
         textContent = await invokeTauri('read_text_content', { path: filePath }) || '';
       }
       currentFile = info;
+      activePlugin = pluginRegistry.findPluginForFile(info.extension);
     }
   }
 
@@ -98,6 +108,7 @@
 
   async function closeWindow() {
     currentFile = null;
+    activePlugin = undefined;
     textContent = '';
     fileGroup = [];
     groupIndex = 0;
@@ -170,6 +181,12 @@
       applyTheme('dark');
     }
 
+    // Load installed plugins
+    await pluginRegistry.loadPlugins();
+    if (currentFile) {
+      activePlugin = pluginRegistry.findPluginForFile(currentFile.extension);
+    }
+
     // Listen for Tauri events
     try {
       unlistenPreview = await listen<string>('preview_file', async (event) => {
@@ -185,6 +202,7 @@
       });
       unlistenClose = await listen('close_preview', () => {
         currentFile = null;
+        activePlugin = undefined;
         textContent = '';
         fileGroup = [];
         groupIndex = 0;
@@ -334,14 +352,21 @@
       />
     {:else if currentFile.category === 'image'}
       <ImagePreview file={currentFile} lang={settings.language} />
-    {:else if currentFile.category === 'code' || currentFile.category === 'text'}
-      <CodePreview file={currentFile} content={textContent} lang={settings.language} />
-    {:else if currentFile.category === 'markdown'}
-      <MarkdownPreview file={currentFile} content={textContent} lang={settings.language} />
     {:else if currentFile.category === 'pdf'}
       <PdfPreview file={currentFile} lang={settings.language} />
     {:else if currentFile.category === 'archive'}
       <ArchivePreview file={currentFile} lang={settings.language} />
+    {:else if activePlugin}
+      <PluginHost
+        plugin={activePlugin}
+        file={currentFile}
+        theme={settings.theme}
+        language={settings.language}
+      />
+    {:else if currentFile.category === 'code' || currentFile.category === 'text'}
+      <CodePreview file={currentFile} content={textContent} lang={settings.language} />
+    {:else if currentFile.category === 'markdown'}
+      <MarkdownPreview file={currentFile} content={textContent} lang={settings.language} />
     {:else}
       <GenericPreview file={currentFile} lang={settings.language} onOpenApp={openWithDefaultApp} />
     {/if}
@@ -351,7 +376,11 @@
   <footer class="statusbar">
     <div class="status-left">
       {#if currentFile}
-        <span class="badge-cat">{currentFile.category.toUpperCase()}</span>
+        {#if activePlugin}
+          <span class="badge-cat plugin-badge">{activePlugin.manifest.name}</span>
+        {:else}
+          <span class="badge-cat">{currentFile.category.toUpperCase()}</span>
+        {/if}
         <span class="status-path">{currentFile.path}</span>
       {:else}
         <span class="status-tip">Windows Explorer Peekit</span>

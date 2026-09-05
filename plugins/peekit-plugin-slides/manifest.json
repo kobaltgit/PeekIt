@@ -1,0 +1,12 @@
+{
+  "id": "com.peekit.slides-viewer",
+  "name": "PowerPoint Presentation Viewer",
+  "version": "1.0.0",
+  "author": "PeekIt Team",
+  "description": "Fast offline viewer for PowerPoint presentations (PPTX, PPT) with slide thumbnails, keyboard navigation, and zoom",
+  "extensions": [".pptx", ".ppt"],
+  "entry": "index.html",
+  "default_view": "window",
+  "icon": "tv",
+  "permissions": []
+}

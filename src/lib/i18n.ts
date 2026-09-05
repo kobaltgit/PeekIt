@@ -76,6 +76,16 @@ export const translations = {
     author: 'Разработчик: Kobalt',
     github_link: 'Репозиторий проекта на GitHub',
     website_link: 'Официальный сайт Peekit',
+    // Plugins
+    plugins_tab: 'Плагины',
+    plugins_desc: 'Установленные веб-плагины для расширения форматов файлов',
+    plugins_open_folder: 'Открыть папку плагинов',
+    plugins_refresh: 'Обновить',
+    plugins_empty: 'Плагины не найдены. Поместите плагин в папку и нажмите «Обновить».',
+    plugins_extensions: 'Расширения',
+    plugins_by: 'Автор',
+    plugins_version: 'Версия',
+
     save: 'Сохранить',
     close_settings: 'Закрыть',
   },
@@ -153,6 +163,17 @@ export const translations = {
     author: 'Developer: Kobalt',
     github_link: 'Project GitHub Repository',
     website_link: 'Official Peekit Website',
+
+    // Plugins
+    plugins_tab: 'Plugins',
+    plugins_desc: 'Installed web plugins extending supported file formats',
+    plugins_open_folder: 'Open Plugins Folder',
+    plugins_refresh: 'Refresh',
+    plugins_empty: 'No plugins found. Place plugins into the folder and click Refresh.',
+    plugins_extensions: 'Extensions',
+    plugins_by: 'Author',
+    plugins_version: 'Version',
+
     save: 'Save',
     close_settings: 'Close',
   }

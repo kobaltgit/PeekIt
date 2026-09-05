@@ -53,4 +53,24 @@ export interface AppSettings {
   autoplayMedia: boolean;
   volume: number;
   stayOnTop: boolean;
+  disabledPlugins?: string[];
 }
+
+export interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  author?: string;
+  description?: string;
+  extensions: string[];
+  entry: string;
+  minPeekitVersion?: string;
+  permissions?: string[];
+}
+
+export interface PluginInfo {
+  manifest: PluginManifest;
+  rootPath: string;
+  isEnabled: boolean;
+}
+

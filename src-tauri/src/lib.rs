@@ -1,6 +1,7 @@
 mod commands;
 mod explorer;
 mod hook;
+mod plugins;
 mod preview;
 
 use tauri::{
@@ -11,10 +12,25 @@ use tauri::{
 
 pub fn log_debug(msg: &str) {
     use std::io::Write;
-    let path = "d:\\Projects\\active\\QuickLook\\output\\peekit_debug.log";
-    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+    let log_path = if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            parent.join("peekit_debug.log")
+        } else {
+            std::path::PathBuf::from("peekit_debug.log")
+        }
+    } else {
+        std::path::PathBuf::from("peekit_debug.log")
+    };
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&log_path) {
         let now = chrono::Local::now().format("%H:%M:%S%.3f");
         let _ = writeln!(f, "[{}] {}", now, msg);
+    }
+    let dev_log = std::path::Path::new("d:\\Projects\\active\\PeekIt\\output\\peekit_debug.log");
+    if dev_log.parent().map(|p| p.exists()).unwrap_or(false) && dev_log != log_path {
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(dev_log) {
+            let now = chrono::Local::now().format("%H:%M:%S%.3f");
+            let _ = writeln!(f, "[{}] {}", now, msg);
+        }
     }
 }
 
@@ -25,6 +41,9 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
         ))
+        .register_uri_scheme_protocol("plugin-asset", |_app, request| {
+            plugins::protocol::handle_plugin_asset_request(&request)
+        })
         .invoke_handler(tauri::generate_handler![
             commands::get_file_info,
             commands::read_text_content,
@@ -36,6 +55,10 @@ pub fn run() {
             commands::save_app_config,
             commands::navigate_adjacent_file,
             commands::log_frontend,
+            commands::get_installed_plugins,
+            commands::open_plugins_folder,
+            commands::read_binary_for_plugin,
+            commands::set_plugin_enabled,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");

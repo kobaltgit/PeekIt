@@ -1,0 +1,11 @@
+{
+  "id": "com.peekit.3d-viewer",
+  "name": "3D Model Viewer",
+  "version": "1.0.0",
+  "author": "Kobalt",
+  "description": "Interactive 3D model previewer for STL, OBJ, GLTF, GLB, and PLY files with WebGL rendering, orbit controls, turntable and wireframe modes",
+  "extensions": [".stl", ".obj", ".gltf", ".glb", ".ply"],
+  "entry": "index.html",
+  "minPeekitVersion": "1.0.0",
+  "permissions": ["read_file"]
+}

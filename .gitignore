@@ -23,6 +23,10 @@ output/
 
 # Scratch & temp files
 scratch_*
+scratch/
+graphify-out/
+.graphifyignore
+\$RECYCLE.BIN/
 peekit_icon_bg.svg
 
 # OS & Editors
@@ -32,3 +36,4 @@ peekit_icon_bg.svg
 *.user
 Thumbs.db
 Desktop.ini
+

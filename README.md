@@ -39,6 +39,15 @@
   - **Архивы:** Просмотр структуры и размеров файлов внутри `.zip` без распаковки.
   - **Облачные файлы:** Бережная обработка OneDrive плейсхолдеров без нежелательной фоновой загрузки гигабайтов.
 - **Двуязычность и темы:** Полная поддержка русского и английского языков, темная (Slate Dark) и светлая (Clean Light) темы Fluent Design.
+- **🧩 Модульная система плагинов (Plugin Architecture):**
+  - Изолированные веб-плагины, работающие в защищенных песочницах WebView2 без оверхеда на основной процесс.
+  - **Встроенные плагины v1.1.0 "из коробки":**
+    - 🎨 **Шрифты (Font Viewer):** `.ttf`, `.otf`, `.woff`, `.woff2` (OpenType санитайзер, глифы, панграммы).
+    - 🧊 **3D Модели (3D Viewer):** `.stl`, `.obj`, `.gltf`, `.glb`, `.ply` (Three.js WebGL, студийное освещение, пресеты материалов, 360° вертушка, полигональная статистика).
+    - 📄 **Word Документы (Docx Viewer):** `.docx`, `.doc` (Печатный макет А4, таблицы, изображения, ночной режим чтения).
+    - 📊 **Электронные таблицы (Spreadsheet Viewer):** `.xlsx`, `.xls`, `.csv`, `.tsv`, `.ods` (Сетка Excel с формулами, вкладки листов, живой поиск).
+    - 📽️ **Презентации (PowerPoint Viewer):** `.pptx`, `.ppt` (Интерактивное слайд-шоу, навигация стрелками, боковая лента миниатюр).
+  - Разработка и сообщество плагинов: [peekit-plugins](https://github.com/kobaltgit/peekit-plugins).
 
 ---
 
@@ -54,6 +63,15 @@ It enables instant file previews by pressing **Space** in File Explorer or on th
 - **Smart Typing & Rename Filter:** Does not interfere when renaming files in Explorer or typing in search bars.
 - **Integrated Fluent Media Player:** Smooth playback for video and audio with timeline scrubber, volume slider, loop mode, and speed toggles.
 - **Broad Format Coverage:** Images, multi-page PDFs, rendered Markdown, syntax-highlighted code, and ZIP archive contents without unpacking.
+- **🧩 Extensible Plugin Architecture:**
+  - Sandboxed WebView2 web-plugins with zero impact on background memory.
+  - **Bundled Out-Of-The-Box Plugins (v1.1.0):**
+    - 🎨 **Fonts:** `.ttf`, `.otf`, `.woff`, `.woff2` (OpenType sanitizer fallback, custom pangrams, glyph viewer).
+    - 🧊 **3D Models:** `.stl`, `.obj`, `.gltf`, `.glb`, `.ply` (Three.js WebGL, studio lighting, materials, 360° turntable, polygon/vertex stats).
+    - 📄 **Word Documents:** `.docx`, `.doc` (A4 print layout, tables, images, dark/light reading modes).
+    - 📊 **Spreadsheets:** `.xlsx`, `.xls`, `.csv`, `.tsv`, `.ods` (Excel grid, formula bar, multi-sheet tabs, live search).
+    - 📽️ **Presentations:** `.pptx`, `.ppt` (Slide-show stage, keyboard navigation, thumbnail strip).
+  - Ecosystem & Developer repo: [peekit-plugins](https://github.com/kobaltgit/peekit-plugins).
 - **Zero Admin / Portable:** Runs entirely in user mode (HKCU).
 
 ---

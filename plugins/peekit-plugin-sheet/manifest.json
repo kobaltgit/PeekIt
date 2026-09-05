@@ -1,0 +1,12 @@
+{
+  "id": "com.peekit.sheet-viewer",
+  "name": "Spreadsheet Viewer",
+  "version": "1.0.0",
+  "author": "PeekIt Team",
+  "description": "Fast offline viewer for Excel spreadsheets (XLSX, XLS), CSV, TSV and OpenDocument sheets",
+  "extensions": [".xlsx", ".xls", ".csv", ".tsv", ".ods"],
+  "entry": "index.html",
+  "default_view": "window",
+  "icon": "table",
+  "permissions": []
+}

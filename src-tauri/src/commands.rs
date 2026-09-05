@@ -107,3 +107,74 @@ pub fn navigate_adjacent_file(app: AppHandle, direction: String) -> Result<Optio
     let _ = (app, direction);
     Ok(None)
 }
+
+#[tauri::command]
+pub fn get_installed_plugins() -> Result<Vec<crate::plugins::manifest::PluginInfo>, String> {
+    let disabled_ids: Vec<String> = match get_app_config() {
+        Ok(val) => val
+            .get("disabledPlugins")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                    .collect()
+            })
+            .unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+
+    Ok(crate::plugins::scanner::scan_plugins(&disabled_ids))
+}
+
+#[tauri::command]
+pub fn open_plugins_folder() -> Result<(), String> {
+    let plugins_dir = crate::plugins::scanner::ensure_plugins_dir()?;
+    #[cfg(windows)]
+    {
+        Command::new("explorer")
+            .arg(&plugins_dir)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = plugins_dir;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_binary_for_plugin(path: String) -> Result<Vec<u8>, String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err(format!("File '{}' not found", path));
+    }
+    std::fs::read(p).map_err(|e| format!("Failed to read file: {}", e))
+}
+
+#[tauri::command]
+pub fn set_plugin_enabled(id: String, enabled: bool) -> Result<(), String> {
+    let mut config = get_app_config().unwrap_or_else(|_| serde_json::json!({}));
+    let mut disabled: Vec<String> = config
+        .get("disabledPlugins")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|x| x.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    if enabled {
+        disabled.retain(|item| item != &id);
+    } else if !disabled.contains(&id) {
+        disabled.push(id);
+    }
+
+    if let Some(obj) = config.as_object_mut() {
+        obj.insert("disabledPlugins".to_string(), serde_json::json!(disabled));
+    }
+
+    save_app_config(config)
+}
+
