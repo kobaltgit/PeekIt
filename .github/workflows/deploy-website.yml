@@ -41,7 +41,7 @@ jobs:
 
       - name: Build web
         working-directory: website
-        run: flutter build web --release --base-href /peekit/
+        run: flutter build web --release --base-href /PeekIt/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
