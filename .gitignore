@@ -1,0 +1,27 @@
+# Node & SvelteKit
+node_modules/
+build/
+.svelte-kit/
+dist/
+.env
+.env.*
+!.env.example
+
+# Rust & Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Flutter Web
+website/.dart_tool/
+website/build/
+website/.flutter-plugins
+website/.flutter-plugins-dependencies
+website/.pub-cache/
+
+# OS & Editors
+.vscode/
+.idea/
+*.suo
+*.user
+Thumbs.db
+Desktop.ini
