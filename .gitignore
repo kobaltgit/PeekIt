@@ -18,6 +18,13 @@ website/.flutter-plugins
 website/.flutter-plugins-dependencies
 website/.pub-cache/
 
+# Build output & release files
+output/
+
+# Scratch & temp files
+scratch_*
+peekit_icon_bg.svg
+
 # OS & Editors
 .vscode/
 .idea/
