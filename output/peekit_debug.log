@@ -3689,3 +3689,87 @@
 [20:59:46.452] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
 [20:59:46.453] is_explorer_or_desktop_active = false
 [20:59:46.596] Space key UP event intercepted!
+[21:01:58.875] Space key DOWN event intercepted!
+[21:01:58.875] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:01:58.875] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:01:58.875] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:01:58.875] is_explorer_or_desktop_active = false
+[21:01:58.987] Space key UP event intercepted!
+[21:02:04.676] Space key DOWN event intercepted!
+[21:02:04.676] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:02:04.676] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:02:04.676] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:02:04.676] is_explorer_or_desktop_active = false
+[21:02:04.788] Space key UP event intercepted!
+[21:02:06.796] Space key DOWN event intercepted!
+[21:02:06.796] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:02:06.796] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:02:06.796] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:02:06.796] is_explorer_or_desktop_active = false
+[21:02:06.924] Space key UP event intercepted!
+[21:02:07.860] Space key DOWN event intercepted!
+[21:02:07.860] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:02:07.860] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:02:07.860] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:02:07.860] is_explorer_or_desktop_active = false
+[21:02:07.972] Space key UP event intercepted!
+[21:02:08.460] Space key DOWN event intercepted!
+[21:02:08.460] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:02:08.460] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:02:08.460] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:02:08.461] is_explorer_or_desktop_active = false
+[21:02:08.604] Space key UP event intercepted!
+[21:02:15.245] Space key DOWN event intercepted!
+[21:02:15.245] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:02:15.245] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:02:15.245] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:02:15.245] is_explorer_or_desktop_active = false
+[21:02:15.324] Space key UP event intercepted!
+[21:05:07.448] Space key DOWN event intercepted!
+[21:05:07.448] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:07.448] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:07.448] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:07.448] is_explorer_or_desktop_active = false
+[21:05:07.608] Space key UP event intercepted!
+[21:05:14.393] Space key DOWN event intercepted!
+[21:05:14.393] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:14.393] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:14.393] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:14.393] is_explorer_or_desktop_active = false
+[21:05:14.537] Space key UP event intercepted!
+[21:05:15.080] Space key DOWN event intercepted!
+[21:05:15.080] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:15.080] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:15.081] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:15.081] is_explorer_or_desktop_active = false
+[21:05:15.240] Space key UP event intercepted!
+[21:05:20.657] Space key DOWN event intercepted!
+[21:05:20.657] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:20.657] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:20.657] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:20.658] is_explorer_or_desktop_active = false
+[21:05:20.817] Space key UP event intercepted!
+[21:05:22.937] Space key DOWN event intercepted!
+[21:05:22.937] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:22.937] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:22.938] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:22.938] is_explorer_or_desktop_active = false
+[21:05:23.065] Space key UP event intercepted!
+[21:05:23.409] Space key DOWN event intercepted!
+[21:05:23.409] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:23.409] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:23.410] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:23.410] is_explorer_or_desktop_active = false
+[21:05:23.537] Space key UP event intercepted!
+[21:05:24.522] Space key DOWN event intercepted!
+[21:05:24.522] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:24.522] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:24.522] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:24.522] is_explorer_or_desktop_active = false
+[21:05:24.665] Space key UP event intercepted!
+[21:05:28.642] Space key DOWN event intercepted!
+[21:05:28.642] Peekit window state: visible=false, is_focused=false, fg_hwnd=HWND(0x1b2734)
+[21:05:28.642] is_explorer_check: hwnd=HWND(0x1b2734), class='Chrome_WidgetWin_1'
+[21:05:28.642] process_check: pid=30460, path='c:\users\kobalt\appdata\local\programs\antigravity ide\antigravity ide.exe', is_exp=false
+[21:05:28.642] is_explorer_or_desktop_active = false
+[21:05:28.770] Space key UP event intercepted!
