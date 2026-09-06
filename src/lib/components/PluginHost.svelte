@@ -49,9 +49,21 @@
 
   async function handleRequestData() {
     try {
-      const rawBytes = await invoke<number[] | Uint8Array>('read_binary_for_plugin', { path: file.path });
-      const uint8 = rawBytes instanceof Uint8Array ? rawBytes : new Uint8Array(rawBytes);
-      const buffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
+      const raw = await invoke<any>('read_binary_for_plugin', { path: file.path });
+      let buffer: ArrayBuffer;
+      if (raw instanceof ArrayBuffer) {
+        buffer = raw;
+      } else if (raw instanceof Uint8Array) {
+        buffer = raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength);
+      } else if (ArrayBuffer.isView(raw)) {
+        const view = raw as ArrayBufferView;
+        buffer = view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+      } else if (Array.isArray(raw)) {
+        const uint8 = new Uint8Array(raw);
+        buffer = uint8.buffer;
+      } else {
+        throw new Error('Некорректный формат бинарных данных от хоста');
+      }
 
       sendToPlugin(
         {

@@ -28,6 +28,9 @@ graphify-out/
 .graphifyignore
 \$RECYCLE.BIN/
 peekit_icon_bg.svg
+HABR_ARTICLE.md
+habr_cover.png
+peekit_store_showcase.png
 
 # OS & Editors
 .vscode/

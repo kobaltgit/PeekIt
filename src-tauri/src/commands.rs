@@ -189,12 +189,19 @@ pub fn open_plugins_folder() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn read_binary_for_plugin(path: String) -> Result<Vec<u8>, String> {
+pub fn read_binary_for_plugin(path: String) -> Result<tauri::ipc::Response, String> {
+    crate::log_debug(&format!("[PluginBinary] Requesting binary for: '{}'", path));
     let p = std::path::Path::new(&path);
     if !p.exists() {
         return Err(format!("File '{}' not found", path));
     }
-    std::fs::read(p).map_err(|e| format!("Failed to read file: {}", e))
+    let metadata = std::fs::metadata(p).map_err(|e| e.to_string())?;
+    if metadata.len() > 500 * 1024 * 1024 {
+        return Err(format!("Файл слишком велик для быстрого предпросмотра ({:.1} MB)", metadata.len() as f64 / (1024.0 * 1024.0)));
+    }
+    let bytes = std::fs::read(p).map_err(|e| format!("Failed to read file: {}", e))?;
+    crate::log_debug(&format!("[PluginBinary] Read {} bytes successfully, sending raw binary IPC response", bytes.len()));
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]

@@ -19,34 +19,46 @@ class ComparisonTable extends StatelessWidget {
 
     final rows = [
       {
-        'param': 'param_ram',
-        'peekit': 'param_ram_peekit',
-        'ms': 'param_ram_ms',
-        'pt': 'param_ram_pt',
+        'param': 'param_tech',
+        'peekit': 'param_tech_peekit',
+        'ms': 'param_tech_ql',
+        'pt': 'param_tech_pt',
+      },
+      {
+        'param': 'param_ram_idle',
+        'peekit': 'param_ram_idle_peekit',
+        'ms': 'param_ram_idle_ql',
+        'pt': 'param_ram_idle_pt',
+      },
+      {
+        'param': 'param_ram_active',
+        'peekit': 'param_ram_active_peekit',
+        'ms': 'param_ram_active_ql',
+        'pt': 'param_ram_active_pt',
       },
       {
         'param': 'param_speed',
         'peekit': 'param_speed_peekit',
-        'ms': 'param_speed_ms',
+        'ms': 'param_speed_ql',
         'pt': 'param_speed_pt',
-      },
-      {
-        'param': 'param_media',
-        'peekit': 'param_media_peekit',
-        'ms': 'param_media_ms',
-        'pt': 'param_media_pt',
-      },
-      {
-        'param': 'param_admin',
-        'peekit': 'param_admin_peekit',
-        'ms': 'param_admin_ms',
-        'pt': 'param_admin_pt',
       },
       {
         'param': 'param_size',
         'peekit': 'param_size_peekit',
-        'ms': 'param_size_ms',
+        'ms': 'param_size_ql',
         'pt': 'param_size_pt',
+      },
+      {
+        'param': 'param_plugins',
+        'peekit': 'param_plugins_peekit',
+        'ms': 'param_plugins_ql',
+        'pt': 'param_plugins_pt',
+      },
+      {
+        'param': 'param_admin',
+        'peekit': 'param_admin_peekit',
+        'ms': 'param_admin_ql',
+        'pt': 'param_admin_pt',
       },
     ];
 
@@ -90,8 +102,10 @@ class ComparisonTable extends StatelessWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: isMobile ? 650 : 900),
+                    constraints: BoxConstraints(minWidth: isMobile ? 700 : 920),
                     child: DataTable(
+                      dataRowMinHeight: 48,
+                      dataRowMaxHeight: double.infinity,
                       headingRowColor: WidgetStateProperty.all(
                         isDark ? AppTheme.darkSubtle : AppTheme.lightSubtle,
                       ),
