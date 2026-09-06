@@ -111,6 +111,7 @@ class Navbar extends StatelessWidget {
                   children: [
                     _navItem('nav_features', 'features'),
                     _navItem('nav_formats', 'formats'),
+                    _navItem('nav_plugins', 'plugins'),
                     _navItem('nav_demo', 'demo'),
                     _navItem('nav_compare', 'compare'),
                     _navItem('nav_faq', 'faq'),

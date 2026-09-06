@@ -3,10 +3,71 @@ class WebsiteI18n {
     'ru': {
       'nav_features': 'Возможности',
       'nav_formats': 'Форматы',
+      'nav_plugins': 'Плагины',
       'nav_demo': 'Интерактивное демо',
       'nav_compare': 'Сравнение',
       'nav_faq': 'Вопросы и ответы',
       'nav_download': 'Скачать',
+
+      // Plugins Showcase
+      'plugins_tag': 'ЭКОСИСТЕМА РАСШИРЕНИЙ',
+      'plugins_title': 'Плагины для любых профессиональных форматов',
+      'plugins_subtitle': 'Устанавливайте поддержку графики, 3D, офисных документов и шрифтов в 1 клик прямо из встроенного магазина PeekIt. Каждый плагин изолирован в защищенной песочнице и работает с нулевым фоновым потреблением памяти.',
+      'cat_all': 'Все',
+      'cat_graphics': 'Графика',
+      'cat_3d': '3D',
+      'cat_docs': 'Документы',
+      'cat_fonts': 'Шрифты',
+      'cat_sheets': 'Таблицы',
+      'plugins_store_title': 'Встроенный магазин плагинов прямо в PeekIt',
+      'plugins_store_desc': 'Откройте контекстное меню трея PeekIt и выберите «Магазин плагинов», чтобы устанавливать и обновлять плагины из сети в 1 клик без ручной распаковки архивов.',
+      'plugins_btn_catalog': 'Каталог плагинов',
+
+      // Plugin Descriptions & Features (RU)
+      'plugin_psd_desc': 'Высокоточный просмотр макетов Adobe Photoshop с векторно-растровым рендерингом.',
+      'plugin_psd_f1': 'Просмотр и скрытие отдельных слоев макета',
+      'plugin_psd_f2': 'Панорамирование и зум от 10% до 800%',
+      'plugin_psd_f3': 'Инспекция цветового пространства и метаданных',
+
+      'plugin_ai_desc': 'Векторный просмотр иллюстраций и дизайн-макетов Adobe Illustrator.',
+      'plugin_ai_f1': 'Переключение между монтажными областями (артбордами)',
+      'plugin_ai_f2': 'Плавный векторный зум без потери четкости',
+      'plugin_ai_f3': 'Отображение размеров полотна и палитры документа',
+
+      'plugin_eps_desc': 'Мгновенный просмотр векторных и полиграфических файлов Encapsulated PostScript.',
+      'plugin_eps_f1': 'Парсинг векторных PostScript-контуров',
+      'plugin_eps_f2': 'Извлечение встроенных превью TIFF / WMF',
+      'plugin_eps_f3': 'Полноэкранный просмотр логотипов и векторных иконок',
+
+      'plugin_3d_desc': 'Интерактивный просмотр 3D-моделей на движке Three.js с аппаратным ускорением WebGL.',
+      'plugin_3d_f1': '4 студийных шейдера: глина, серый, металл, нормали',
+      'plugin_3d_f2': 'Режимы шейдинга: сглаженный, flat и сетка (wireframe)',
+      'plugin_3d_f3': 'Плавное вращение 360° (вертушка) и подсчет полигонов',
+
+      'plugin_docx_desc': 'Быстрый офлайн-просмотр документов Microsoft Word с сохранением оригинальной верстки.',
+      'plugin_docx_f1': 'Реалистичный печатный макет A4 с тенями и полями',
+      'plugin_docx_f2': 'Таблицы, форматирование текста, списки и заголовки',
+      'plugin_docx_f3': 'Ночной режим чтения с мягким темным фоном',
+
+      'plugin_ebook_desc': 'Удобное и стильное чтение электронных книг в форматах EPUB и FB2.',
+      'plugin_ebook_f1': 'Боковое оглавление с быстрым переходом по главам',
+      'plugin_ebook_f2': '3 палитры оформления: светлая, сепия и ночная',
+      'plugin_ebook_f3': 'Регулировка размера шрифта и межстрочного интервала',
+
+      'plugin_sheet_desc': 'Просмотр электронных таблиц Excel и CSV/TSV с интерактивной сеткой ячеек.',
+      'plugin_sheet_f1': 'Переключатель вкладок листов книги (Sheet1, Sheet2...)',
+      'plugin_sheet_f2': 'Инспектор выбранной ячейки и просмотр формул',
+      'plugin_sheet_f3': 'Живой мгновенный поиск по значениям таблицы',
+
+      'plugin_slides_desc': 'Просмотр презентаций PowerPoint в формате интерактивного слайд-шоу.',
+      'plugin_slides_f1': 'Боковая панель миниатюр слайдов с быстрой навигацией',
+      'plugin_slides_f2': 'Полноэкранный просмотр с адаптацией 16:9 и 4:3',
+      'plugin_slides_f3': 'Удобное переключение стрелками и клавишей Space',
+
+      'plugin_font_desc': 'Интерактивная типографика и тестирование шрифтовых файлов.',
+      'plugin_font_f1': 'Полная таблица глифов с шестнадцатеричными Unicode-кодами',
+      'plugin_font_f2': 'Выбор кегля (размера) шрифта от 12px до 96px',
+      'plugin_font_f3': 'Набор панграмм на русском, английском и цифрах',
 
       // Hero
       'hero_tag': 'ЭКОСИСТЕМА WINDOWS СИСТЕМНЫХ УТИЛИТ',
@@ -114,10 +175,71 @@ class WebsiteI18n {
     'en': {
       'nav_features': 'Features',
       'nav_formats': 'Formats',
+      'nav_plugins': 'Plugins',
       'nav_demo': 'Interactive Demo',
       'nav_compare': 'Comparison',
       'nav_faq': 'FAQ',
       'nav_download': 'Download',
+
+      // Plugins Showcase
+      'plugins_tag': 'EXTENSIONS ECOSYSTEM',
+      'plugins_title': 'Plugins for Any Professional File Format',
+      'plugins_subtitle': 'Install graphics, 3D, office, and typography support in 1 click directly from the in-app PeekIt store. Every plugin is safely sandboxed with zero persistent background memory footprint.',
+      'cat_all': 'All',
+      'cat_graphics': 'Graphics',
+      'cat_3d': '3D',
+      'cat_docs': 'Documents',
+      'cat_fonts': 'Fonts',
+      'cat_sheets': 'Sheets',
+      'plugins_store_title': 'Built-In Plugin Store Directly Inside PeekIt',
+      'plugins_store_desc': 'Right-click PeekIt tray icon and choose "Plugin Store" to download and update plugins with a single click — no manual archive extractions required.',
+      'plugins_btn_catalog': 'Browse Catalog',
+
+      // Plugin Descriptions & Features (EN)
+      'plugin_psd_desc': 'High-fidelity previewer for Adobe Photoshop files with layer inspection and vector rendering.',
+      'plugin_psd_f1': 'Inspect and toggle individual layer visibility',
+      'plugin_psd_f2': 'Smooth panning and zooming from 10% to 800%',
+      'plugin_psd_f3': 'Color space and embedded metadata inspection',
+
+      'plugin_ai_desc': 'Vector previewer for Adobe Illustrator design files and artwork.',
+      'plugin_ai_f1': 'Switch between multiple artboards seamlessly',
+      'plugin_ai_f2': 'Infinite vector zoom without loss of sharpness',
+      'plugin_ai_f3': 'Document canvas dimensions and color profile view',
+
+      'plugin_eps_desc': 'Instant viewer for Encapsulated PostScript vector and print files.',
+      'plugin_eps_f1': 'Vector PostScript path parsing and rendering',
+      'plugin_eps_f2': 'Embedded TIFF and WMF preview extraction',
+      'plugin_eps_f3': 'Full-fidelity preview for logos and vector icons',
+
+      'plugin_3d_desc': 'Interactive 3D model viewer powered by Three.js with hardware WebGL acceleration.',
+      'plugin_3d_f1': '4 studio shaders: clay, studio grey, metal, normals',
+      'plugin_3d_f2': 'Shading modes: smooth, flat, and wireframe mesh',
+      'plugin_3d_f3': 'Smooth 360° turntable auto-rotation and polygon counter',
+
+      'plugin_docx_desc': 'Fast offline Microsoft Word reader preserving document layout and formatting.',
+      'plugin_docx_f1': 'Realistic A4 print page layout with margins and shadows',
+      'plugin_docx_f2': 'Tables, text formatting, bullet lists, and headings',
+      'plugin_docx_f3': 'Night reading mode with eye-friendly dark background',
+
+      'plugin_ebook_desc': 'Comfortable and elegant offline reader for EPUB and FB2 e-books.',
+      'plugin_ebook_f1': 'Sidebar table of contents with quick chapter jumping',
+      'plugin_ebook_f2': '3 color themes: Clean Light, Warm Sepia, Dark Night',
+      'plugin_ebook_f3': 'Customizable font sizing and line spacing',
+
+      'plugin_sheet_desc': 'Excel spreadsheet and CSV/TSV viewer with interactive cell grid.',
+      'plugin_sheet_f1': 'Workbook sheet tab bar (Sheet1, Sheet2...)',
+      'plugin_sheet_f2': 'Selected cell inspector and formula viewer bar',
+      'plugin_sheet_f3': 'Live instant search across all cell values',
+
+      'plugin_slides_desc': 'PowerPoint presentation viewer in an interactive slide-deck format.',
+      'plugin_slides_f1': 'Sidebar slide thumbnails strip for rapid navigation',
+      'plugin_slides_f2': 'Fullscreen mode with 16:9 and 4:3 aspect ratio fit',
+      'plugin_slides_f3': 'Effortless keyboard navigation with arrow keys and Space',
+
+      'plugin_font_desc': 'Interactive typography workbench and font file tester.',
+      'plugin_font_f1': 'Complete Unicode glyph table with hex code inspection',
+      'plugin_font_f2': 'Interactive font size slider from 12px to 96px',
+      'plugin_font_f3': 'Built-in pangram test sentences in Cyrillic & Latin',
 
       // Hero
       'hero_tag': 'WINDOWS UTILITIES ECOSYSTEM',

@@ -4,6 +4,7 @@ import 'widgets/navbar.dart';
 import 'widgets/hero_section.dart';
 import 'widgets/features_grid.dart';
 import 'widgets/supported_formats.dart';
+import 'widgets/plugins_section.dart';
 import 'widgets/interactive_demo.dart';
 import 'widgets/comparison_table.dart';
 import 'widgets/faq_section.dart';
@@ -28,6 +29,7 @@ class _PeekitAppState extends State<PeekitApp> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _featuresKey = GlobalKey();
   final GlobalKey _formatsKey = GlobalKey();
+  final GlobalKey _pluginsKey = GlobalKey();
   final GlobalKey _demoKey = GlobalKey();
   final GlobalKey _compareKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
@@ -40,6 +42,9 @@ class _PeekitAppState extends State<PeekitApp> {
         break;
       case 'formats':
         targetKey = _formatsKey;
+        break;
+      case 'plugins':
+        targetKey = _pluginsKey;
         break;
       case 'demo':
         targetKey = _demoKey;
@@ -96,6 +101,7 @@ class _PeekitAppState extends State<PeekitApp> {
                     ),
                     Container(key: _featuresKey, child: FeaturesGrid(lang: _lang, isDark: _isDark)),
                     Container(key: _formatsKey, child: SupportedFormats(lang: _lang, isDark: _isDark)),
+                    Container(key: _pluginsKey, child: PluginsSection(lang: _lang, isDark: _isDark)),
                     Container(key: _demoKey, child: InteractiveDemo(lang: _lang, isDark: _isDark)),
                     Container(key: _compareKey, child: ComparisonTable(lang: _lang, isDark: _isDark)),
                     Container(key: _faqKey, child: FaqSection(lang: _lang, isDark: _isDark)),
