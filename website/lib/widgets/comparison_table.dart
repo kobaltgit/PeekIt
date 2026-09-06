@@ -62,6 +62,11 @@ class ComparisonTable extends StatelessWidget {
       },
     ];
 
+    final c1Width = isMobile ? 140.0 : 180.0;
+    final c2Width = isMobile ? 185.0 : 235.0;
+    final c3Width = isMobile ? 180.0 : 230.0;
+    final c4Width = isMobile ? 165.0 : 205.0;
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 24, vertical: isMobile ? 40 : 80),
       child: Center(
@@ -102,8 +107,10 @@ class ComparisonTable extends StatelessWidget {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minWidth: isMobile ? 700 : 920),
+                    constraints: BoxConstraints(minWidth: isMobile ? 670 : 880),
                     child: DataTable(
+                      columnSpacing: isMobile ? 12 : 20,
+                      horizontalMargin: isMobile ? 12 : 20,
                       dataRowMinHeight: 48,
                       dataRowMaxHeight: double.infinity,
                       headingRowColor: WidgetStateProperty.all(
@@ -111,36 +118,51 @@ class ComparisonTable extends StatelessWidget {
                       ),
                       columns: [
                         DataColumn(
-                          label: Text(
-                            WebsiteI18n.t('col_param', lang),
-                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          label: SizedBox(
+                            width: c1Width,
+                            child: Text(
+                              WebsiteI18n.t('col_param', lang),
+                              style: const TextStyle(fontWeight: FontWeight.bold),
+                            ),
                           ),
                         ),
                         DataColumn(
-                          label: Row(
-                            children: [
-                              const Icon(Icons.star, size: 16, color: AppTheme.primary),
-                              const SizedBox(width: 6),
-                              Text(
-                                WebsiteI18n.t('col_peekit', lang),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.primary,
+                          label: SizedBox(
+                            width: c2Width,
+                            child: Row(
+                              children: [
+                                const Icon(Icons.star, size: 16, color: AppTheme.primary),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    WebsiteI18n.t('col_peekit', lang),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.primary,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                         DataColumn(
-                          label: Text(
-                            WebsiteI18n.t('col_msstore', lang),
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          label: SizedBox(
+                            width: c3Width,
+                            child: Text(
+                              WebsiteI18n.t('col_msstore', lang),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
                           ),
                         ),
                         DataColumn(
-                          label: Text(
-                            WebsiteI18n.t('col_powertoys', lang),
-                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          label: SizedBox(
+                            width: c4Width,
+                            child: Text(
+                              WebsiteI18n.t('col_powertoys', lang),
+                              style: const TextStyle(fontWeight: FontWeight.w500),
+                            ),
                           ),
                         ),
                       ],
@@ -148,40 +170,58 @@ class ComparisonTable extends StatelessWidget {
                         return DataRow(
                           cells: [
                             DataCell(
-                              Text(
-                                WebsiteI18n.t(r['param']!, lang),
-                                style: const TextStyle(fontWeight: FontWeight.w600),
+                              SizedBox(
+                                width: c1Width,
+                                child: Text(
+                                  WebsiteI18n.t(r['param']!, lang),
+                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                                ),
                               ),
                             ),
                             DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primary.withOpacity(0.12),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Text(
-                                  WebsiteI18n.t(r['peekit']!, lang),
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primary,
+                              SizedBox(
+                                width: c2Width,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.primary.withOpacity(0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      WebsiteI18n.t(r['peekit']!, lang),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: AppTheme.primary,
+                                        fontSize: 13.5,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                             DataCell(
-                              Text(
-                                WebsiteI18n.t(r['ms']!, lang),
-                                style: TextStyle(
-                                  color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+                              SizedBox(
+                                width: c3Width,
+                                child: Text(
+                                  WebsiteI18n.t(r['ms']!, lang),
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+                                    fontSize: 13.5,
+                                  ),
                                 ),
                               ),
                             ),
                             DataCell(
-                              Text(
-                                WebsiteI18n.t(r['pt']!, lang),
-                                style: TextStyle(
-                                  color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+                              SizedBox(
+                                width: c4Width,
+                                child: Text(
+                                  WebsiteI18n.t(r['pt']!, lang),
+                                  style: TextStyle(
+                                    color: isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+                                    fontSize: 13.5,
+                                  ),
                                 ),
                               ),
                             ),
