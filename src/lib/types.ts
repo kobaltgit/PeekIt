@@ -74,3 +74,21 @@ export interface PluginInfo {
   isEnabled: boolean;
 }
 
+export interface RegistryPlugin {
+  id: string;
+  name: string;
+  version: string;
+  author?: string;
+  description?: string;
+  category?: string;
+  extensions: string[];
+  entry?: string;
+  min_peekit_version?: string;
+  download_url: string;
+  github_release_url?: string;
+  size_kb?: string | number;
+  sha256?: string;
+  icon?: string;
+  homepage?: string;
+}
+

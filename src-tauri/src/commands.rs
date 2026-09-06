@@ -229,4 +229,20 @@ pub fn install_plugin(package_path: String) -> Result<crate::plugins::manifest::
     crate::plugins::scanner::install_plugin_package(p)
 }
 
+#[tauri::command]
+pub fn install_plugin_bytes(bytes: Vec<u8>) -> Result<crate::plugins::manifest::PluginInfo, String> {
+    let temp_dir = std::env::temp_dir();
+    let temp_path = temp_dir.join(format!(
+        "peekit_install_{}.pkit",
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis()
+    ));
+    std::fs::write(&temp_path, &bytes).map_err(|e| format!("Failed to write temp package: {}", e))?;
+    let res = crate::plugins::scanner::install_plugin_package(&temp_path);
+    let _ = std::fs::remove_file(&temp_path);
+    res
+}
+
 

@@ -2,20 +2,34 @@
   import type { AppSettings, AppLanguage, AppTheme } from '../types';
   import { t } from '../i18n';
   import PluginsTab from './settings/PluginsTab.svelte';
+  import { openUrl } from '@tauri-apps/plugin-opener';
 
   export let settings: AppSettings;
   export let isOpen: boolean = false;
+  export let initialTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
+  export let initialSubtab: 'installed' | 'store' = 'installed';
   export let onClose: () => void;
   export let onSave: (updated: AppSettings) => void;
 
   let localSettings: AppSettings = { ...settings };
-  let activeTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
+  let activeTab: 'general' | 'appearance' | 'plugins' | 'about' = initialTab;
 
   let wasOpen = false;
   $: if (isOpen && !wasOpen) {
     localSettings = { ...settings };
+    if (initialTab) {
+      activeTab = initialTab;
+    }
   }
   $: wasOpen = isOpen;
+
+  async function openLink(url: string) {
+    try {
+      await openUrl(url);
+    } catch (e) {
+      window.open(url, '_blank');
+    }
+  }
 
   function saveAndClose() {
     onSave({ ...localSettings });
@@ -128,20 +142,38 @@
             </div>
           </div>
         {:else if activeTab === 'plugins'}
-          <PluginsTab lang={localSettings.language} />
+          <PluginsTab lang={localSettings.language} initialSubtab={initialSubtab} />
         {:else if activeTab === 'about'}
           <div class="about-section">
-            <h3>Peekit v1.0.0</h3>
+            <h3>Peekit v1.2.0</h3>
             <p class="about-desc">{t('app_subtitle', localSettings.language)}</p>
             <p class="about-tech">Rust (Win32 COM) + Tauri v2 + Svelte 5</p>
             <p class="about-author">{t('author', localSettings.language)}</p>
             <div class="about-links">
-              <a href="https://github.com/kobaltgit/quicklook" target="_blank" rel="noreferrer">
-                {t('github_link', localSettings.language)}
-              </a>
-              <a href="https://kobaltgit.github.io/quicklook/" target="_blank" rel="noreferrer">
-                {t('website_link', localSettings.language)}
-              </a>
+              <button class="link-btn" on:click={() => openLink('https://github.com/kobaltgit/peekit')}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                </svg>
+                <span>{t('github_link', localSettings.language)}</span>
+              </button>
+
+              <button class="link-btn" on:click={() => openLink('https://kobaltgit.github.io/PeekIt/')}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                </svg>
+                <span>{t('website_link', localSettings.language)}</span>
+              </button>
+
+              <button class="link-btn" on:click={() => openLink('https://kobaltgit.github.io/peekit-plugins/')}>
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+                  <line x1="12" y1="22.08" x2="12" y2="12" />
+                </svg>
+                <span>{t('plugins_repo_link', localSettings.language)}</span>
+              </button>
             </div>
           </div>
         {/if}
@@ -361,18 +393,44 @@
   .about-links {
     display: flex;
     justify-content: center;
-    gap: 16px;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-subtle, rgba(255, 255, 255, 0.05));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+    color: var(--text-main, #f1f5f9);
+    padding: 8px 14px;
+    border-radius: 8px;
     font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  .about-links a {
-    color: var(--accent);
-    text-decoration: none;
+  .link-btn:hover {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.1));
+    border-color: var(--accent, #3b82f6);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
   }
 
-  .about-links a:hover {
-    text-decoration: underline;
+  .link-btn svg {
+    color: var(--accent, #3b82f6);
+    transition: transform 0.2s ease;
   }
+
+  .link-btn:hover svg {
+    transform: scale(1.1);
+  }
+
 
   .modal-footer {
     display: flex;

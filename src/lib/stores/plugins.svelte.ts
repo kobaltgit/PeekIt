@@ -52,6 +52,50 @@ class PluginRegistry {
     await this.loadPlugins();
     return installed;
   }
+
+  async fetchOnlineCatalog(): Promise<import('$lib/types').RegistryPlugin[]> {
+    const urls = [
+      'https://kobaltgit.github.io/peekit-plugins/registry.json',
+      'https://raw.githubusercontent.com/kobaltgit/peekit-plugins/main/registry.json'
+    ];
+
+    for (const u of urls) {
+      try {
+        const resp = await fetch(u, { cache: 'no-cache' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && Array.isArray(data.plugins)) {
+            return data.plugins;
+          }
+        }
+      } catch (err) {
+        console.warn(`[PluginRegistry] Failed to fetch catalog from ${u}:`, err);
+      }
+    }
+    throw new Error('Каталог плагинов временно недоступен в сети');
+  }
+
+  async installPluginFromUrl(downloadUrl: string, expectedSha256?: string): Promise<PluginInfo> {
+    const response = await fetch(downloadUrl);
+    if (!response.ok) {
+      throw new Error(`Ошибка загрузки: HTTP ${response.status}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+
+    if (expectedSha256) {
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const computedSha = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      if (computedSha.toLowerCase() !== expectedSha256.toLowerCase()) {
+        throw new Error(`Контрольная сумма SHA-256 не совпадает!`);
+      }
+    }
+
+    const bytes = Array.from(new Uint8Array(arrayBuffer));
+    const installed = await invoke<PluginInfo>('install_plugin_bytes', { bytes });
+    await this.loadPlugins();
+    return installed;
+  }
 }
 
 export const pluginRegistry = new PluginRegistry();

@@ -5,7 +5,7 @@ mod plugins;
 mod preview;
 
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::{TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
@@ -61,6 +61,7 @@ pub fn run() {
             commands::read_binary_for_plugin,
             commands::set_plugin_enabled,
             commands::install_plugin,
+            commands::install_plugin_bytes,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");
@@ -91,34 +92,51 @@ pub fn run() {
             };
 
             // Setup System Tray
-            let quit_i = MenuItem::with_id(app, "quit", "Выход (Quit)", true, None::<&str>)?;
+            let title_i = MenuItem::with_id(app, "title", "Peekit v1.2.0", false, None::<&str>)?;
+            let sep1 = PredefinedMenuItem::separator(app)?;
+            let marketplace_i = MenuItem::with_id(app, "marketplace", "Магазин плагинов (Store)", true, None::<&str>)?;
             let settings_i = MenuItem::with_id(app, "settings", "Параметры (Settings)", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&settings_i, &quit_i])?;
+            let about_i = MenuItem::with_id(app, "about", "О программе (About)", true, None::<&str>)?;
+            let sep2 = PredefinedMenuItem::separator(app)?;
+            let quit_i = MenuItem::with_id(app, "quit", "Выход (Quit)", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&title_i, &sep1, &marketplace_i, &settings_i, &about_i, &sep2, &quit_i])?;
+
+            let open_dialog_tab = |app: &tauri::AppHandle, payload: serde_json::Value| {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.emit("open_settings", payload.clone());
+                    let _ = app.emit("open_settings", payload);
+                    let _ = window.unminimize();
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    #[cfg(windows)]
+                    if let Ok(hwnd) = window.hwnd() {
+                        unsafe {
+                            let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(windows::Win32::Foundation::HWND(hwnd.0));
+                        }
+                    }
+                }
+            };
 
             let tray = TrayIconBuilder::with_id("main_tray")
                 .icon(icon)
                 .menu(&menu)
                 .tooltip("Peekit - Мгновенный просмотр по Пробелу")
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "quit" => {
                         crate::log_debug("Quit menu clicked");
                         std::process::exit(0);
                     }
+                    "marketplace" => {
+                        crate::log_debug("Marketplace menu clicked");
+                        open_dialog_tab(app, serde_json::json!({ "tab": "plugins", "subtab": "store" }));
+                    }
                     "settings" => {
                         crate::log_debug("Settings menu clicked");
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.emit("open_settings", ());
-                            let _ = app.emit("open_settings", ());
-                            let _ = window.unminimize();
-                            let _ = window.show();
-                            let _ = window.set_focus();
-                            #[cfg(windows)]
-                            if let Ok(hwnd) = window.hwnd() {
-                                unsafe {
-                                    let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(windows::Win32::Foundation::HWND(hwnd.0));
-                                }
-                            }
-                        }
+                        open_dialog_tab(app, serde_json::json!({ "tab": "general" }));
+                    }
+                    "about" => {
+                        crate::log_debug("About menu clicked");
+                        open_dialog_tab(app, serde_json::json!({ "tab": "about" }));
                     }
                     _ => {}
                 })

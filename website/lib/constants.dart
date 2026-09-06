@@ -1,6 +1,6 @@
 class AppConstants {
   static const String appName = 'Peekit';
-  static const String appVersion = 'v1.0.0';
+  static const String appVersion = 'v1.2.0';
   static const String githubUrl = 'https://github.com/kobaltgit/peekit';
   static const String downloadExeUrl =
       'https://github.com/kobaltgit/peekit/releases/latest';
