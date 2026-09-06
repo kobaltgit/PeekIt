@@ -3,6 +3,7 @@
   import { t } from '../i18n';
   import PluginsTab from './settings/PluginsTab.svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
+  import { pluginRegistry } from '$lib/stores/plugins.svelte';
 
   export let settings: AppSettings;
   export let isOpen: boolean = false;
@@ -23,6 +24,10 @@
   }
   $: wasOpen = isOpen;
 
+  $: if (isOpen && activeTab === 'plugins') {
+    pluginRegistry.loadPlugins();
+  }
+
   async function openLink(url: string) {
     try {
       await openUrl(url);
@@ -38,8 +43,8 @@
 </script>
 
 {#if isOpen}
-  <div class="modal-backdrop" on:click={onClose} role="presentation">
-    <div class="modal-dialog" on:click|stopPropagation role="dialog" aria-modal="true">
+  <div class="modal-backdrop" on:click={onClose} on:keydown={(e) => { if (e.key === 'Escape') onClose(); }} role="presentation">
+    <div class="modal-dialog" on:click|stopPropagation on:keydown|stopPropagation role="dialog" aria-modal="true" tabindex="-1">
       <div class="modal-header">
         <div class="modal-title">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
@@ -81,8 +86,8 @@
       <div class="modal-body">
         {#if activeTab === 'general'}
           <div class="setting-item">
-            <label class="setting-label">{t('language', localSettings.language)}</label>
-            <select bind:value={localSettings.language} class="setting-select">
+            <label class="setting-label" for="setting-language">{t('language', localSettings.language)}</label>
+            <select id="setting-language" bind:value={localSettings.language} class="setting-select">
               <option value="ru">Русский (RU)</option>
               <option value="en">English (EN)</option>
             </select>
@@ -119,8 +124,8 @@
           </div>
         {:else if activeTab === 'appearance'}
           <div class="setting-item">
-            <label class="setting-label">{t('theme', localSettings.language)}</label>
-            <div class="theme-picker">
+            <span class="setting-label">{t('theme', localSettings.language)}</span>
+            <div class="theme-picker" role="group" aria-label={t('theme', localSettings.language)}>
               <button
                 class="theme-opt {localSettings.theme === 'dark' ? 'selected' : ''}"
                 on:click={() => (localSettings.theme = 'dark')}

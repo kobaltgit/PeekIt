@@ -62,6 +62,7 @@ pub fn run() {
             commands::set_plugin_enabled,
             commands::install_plugin,
             commands::install_plugin_bytes,
+            commands::uninstall_plugin,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");

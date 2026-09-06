@@ -245,4 +245,10 @@ pub fn install_plugin_bytes(bytes: Vec<u8>) -> Result<crate::plugins::manifest::
     res
 }
 
+#[tauri::command]
+pub fn uninstall_plugin(id: String) -> Result<(), String> {
+    crate::plugins::scanner::uninstall_plugin(&id)
+}
+
+
 

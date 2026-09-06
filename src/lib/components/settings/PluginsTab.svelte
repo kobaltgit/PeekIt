@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import type { AppLanguage, RegistryPlugin } from '$lib/types';
   import { t } from '$lib/i18n';
   import { pluginRegistry } from '$lib/stores/plugins.svelte';
@@ -30,6 +30,7 @@
   let searchQuery = '';
   let selectedCategory = 'all';
   let installingPluginId: string | null = null;
+  let confirmingUninstallId: string | null = null;
 
   async function loadCatalog() {
     isLoadingCatalog = true;
@@ -43,9 +44,32 @@
     }
   }
 
+  let pollInterval: any;
+  let handleWindowFocus: () => void;
+
   onMount(() => {
+    pluginRegistry.loadPlugins();
     if (subtab === 'store') {
       loadCatalog();
+    }
+
+    handleWindowFocus = () => {
+      pluginRegistry.loadPlugins();
+    };
+    window.addEventListener('focus', handleWindowFocus);
+
+    // Auto-sync polling every 1.5s while Plugins tab is open
+    pollInterval = setInterval(() => {
+      pluginRegistry.loadPlugins();
+    }, 1500);
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined' && handleWindowFocus) {
+      window.removeEventListener('focus', handleWindowFocus);
+    }
+    if (pollInterval) {
+      clearInterval(pollInterval);
     }
   });
 
@@ -112,7 +136,12 @@
     installMessage = '';
     installingPluginId = plugin.id;
     try {
-      const info = await pluginRegistry.installPluginFromUrl(plugin.download_url, plugin.sha256);
+      const fallbackUrls: string[] = [
+        plugin.github_release_url,
+        `https://raw.githubusercontent.com/kobaltgit/peekit-plugins/main/dist/${plugin.id}-${plugin.version}.pkit`
+      ].filter((u): u is string => Boolean(u));
+
+      const info = await pluginRegistry.installPluginFromUrl(plugin.download_url, plugin.sha256, fallbackUrls);
       installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
       setTimeout(() => { installMessage = ''; }, 4000);
     } catch (e: any) {
@@ -120,6 +149,18 @@
       setTimeout(() => { installError = ''; }, 6000);
     } finally {
       installingPluginId = null;
+    }
+  }
+
+  async function handleUninstallPlugin(id: string, name: string) {
+    try {
+      await pluginRegistry.uninstallPlugin(id);
+      confirmingUninstallId = null;
+      installMessage = lang === 'ru' ? `Плагин «${name}» удален` : `Plugin "${name}" uninstalled`;
+      setTimeout(() => { installMessage = ''; }, 4000);
+    } catch (e: any) {
+      installError = e?.message || e?.toString() || 'Ошибка удаления плагина';
+      setTimeout(() => { installError = ''; }, 5000);
     }
   }
 
@@ -338,14 +379,46 @@
                   {/if}
                 </div>
 
-                <label class="switch" title={plugin.isEnabled ? 'Отключить' : 'Включить'}>
-                  <input
-                    type="checkbox"
-                    checked={plugin.isEnabled}
-                    on:change={() => pluginRegistry.togglePlugin(plugin.manifest.id, !plugin.isEnabled)}
-                  />
-                  <span class="slider"></span>
-                </label>
+                <div class="plugin-card-actions">
+                  {#if confirmingUninstallId === plugin.manifest.id}
+                    <div class="uninstall-confirm-box">
+                      <button
+                        class="btn-confirm-delete"
+                        on:click={() => handleUninstallPlugin(plugin.manifest.id, plugin.manifest.name)}
+                        title={lang === 'ru' ? 'Подтвердить удаление' : 'Confirm delete'}
+                      >
+                        {lang === 'ru' ? 'Удалить?' : 'Delete?'}
+                      </button>
+                      <button
+                        class="btn-cancel-delete"
+                        on:click={() => (confirmingUninstallId = null)}
+                        title={lang === 'ru' ? 'Отмена' : 'Cancel'}
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  {:else}
+                    <button
+                      class="btn-uninstall-plugin"
+                      on:click={() => (confirmingUninstallId = plugin.manifest.id)}
+                      title={lang === 'ru' ? 'Удалить плагин' : 'Uninstall plugin'}
+                    >
+                      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="3 6 5 6 21 6" />
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                      </svg>
+                    </button>
+                  {/if}
+
+                  <label class="switch" title={plugin.isEnabled ? (lang === 'ru' ? 'Отключить' : 'Disable') : (lang === 'ru' ? 'Включить' : 'Enable')}>
+                    <input
+                      type="checkbox"
+                      checked={plugin.isEnabled}
+                      on:change={() => pluginRegistry.togglePlugin(plugin.manifest.id, !plugin.isEnabled)}
+                    />
+                    <span class="slider"></span>
+                  </label>
+                </div>
               </div>
 
               <div class="plugin-footer">
@@ -752,6 +825,70 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .plugin-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .btn-uninstall-plugin {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-uninstall-plugin:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+  }
+
+  .uninstall-confirm-box {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .btn-confirm-delete {
+    background: #ef4444;
+    color: #ffffff;
+    border: none;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+  }
+
+  .btn-confirm-delete:hover {
+    filter: brightness(1.15);
+  }
+
+  .btn-cancel-delete {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 13px;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .btn-cancel-delete:hover {
+    color: var(--text-main);
   }
 
   .plugin-info {

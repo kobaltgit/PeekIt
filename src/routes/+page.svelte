@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
-  import type { FilePreviewInfo, AppSettings, AppLanguage } from '$lib/types';
+  import type { FilePreviewInfo, AppSettings, AppLanguage, PluginInfo } from '$lib/types';
   import { t, currentLanguage } from '$lib/i18n';
   import { currentTheme, applyTheme } from '$lib/theme';
   import ImagePreview from '$lib/components/ImagePreview.svelte';

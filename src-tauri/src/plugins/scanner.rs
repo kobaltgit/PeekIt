@@ -2,18 +2,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use crate::plugins::manifest::{PluginInfo, PluginManifest};
 
-/// Resolves candidate directories where bundled or local plugins might reside.
+/// Resolves candidate directories where bundled resources might reside.
 fn get_candidate_plugin_dirs() -> Vec<PathBuf> {
     let mut candidates = Vec::new();
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            candidates.push(exe_dir.join("plugins"));
-            candidates.push(exe_dir.join("_up_").join("plugins"));
             candidates.push(exe_dir.join("resources").join("plugins"));
-            candidates.push(exe_dir.join("resources").join("_up_").join("plugins"));
         }
     }
-    candidates.push(PathBuf::from("./plugins"));
     candidates
 }
 
@@ -23,12 +19,8 @@ pub fn get_plugins_dir() -> PathBuf {
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
             let local_plugins = exe_dir.join("plugins");
-            let up_plugins = exe_dir.join("_up_").join("plugins");
             let portable_marker = exe_dir.join("portable.txt");
             if portable_marker.exists() || local_plugins.exists() {
-                return local_plugins;
-            }
-            if up_plugins.exists() {
                 return local_plugins;
             }
         }
@@ -68,30 +60,28 @@ fn copy_dir_all(src: &Path, dst: &Path) -> std::io::Result<()> {
 /// Ensures the plugins directory exists and returns its path.
 pub fn ensure_plugins_dir() -> Result<PathBuf, String> {
     let dir = get_plugins_dir();
-    if !dir.exists() {
+    let is_new = !dir.exists();
+    if is_new {
         fs::create_dir_all(&dir).map_err(|e| format!("Failed to create plugins dir '{:?}': {}", dir, e))?;
     }
 
-    // Check if _up_\plugins exists next to exe and copy to exe\plugins if needed
-    if let Ok(exe_path) = std::env::current_exe() {
-        if let Some(exe_dir) = exe_path.parent() {
-            let up_plugins = exe_dir.join("_up_").join("plugins");
-            let local_plugins = exe_dir.join("plugins");
-            if up_plugins.exists() && (!local_plugins.exists() || dir == local_plugins) {
-                let _ = copy_dir_all(&up_plugins, &local_plugins);
-            }
-        }
-    }
+    // Only seed plugins if the directory was just created and is completely empty.
+    // Never resurrect plugins that the user deleted!
+    let is_empty = match fs::read_dir(&dir) {
+        Ok(mut entries) => entries.next().is_none(),
+        Err(_) => true,
+    };
 
-    // Seed/update default plugins from bundled resources into target dir
-    for candidate in get_candidate_plugin_dirs() {
-        if candidate.exists() && candidate != dir {
-            if let Ok(entries) = fs::read_dir(&candidate) {
-                for entry in entries.flatten() {
-                    if entry.path().is_dir() {
-                        let name = entry.file_name();
-                        let target_plugin_dir = dir.join(&name);
-                        let _ = copy_dir_all(&entry.path(), &target_plugin_dir);
+    if is_new || is_empty {
+        for candidate in get_candidate_plugin_dirs() {
+            if candidate.exists() && candidate != dir {
+                if let Ok(entries) = fs::read_dir(&candidate) {
+                    for entry in entries.flatten() {
+                        if entry.path().is_dir() {
+                            let name = entry.file_name();
+                            let target_plugin_dir = dir.join(&name);
+                            let _ = copy_dir_all(&entry.path(), &target_plugin_dir);
+                        }
                     }
                 }
             }
@@ -130,14 +120,19 @@ pub fn find_plugin_dir(plugin_id: &str) -> Option<PathBuf> {
     if let Some(p) = find_plugin_in(&primary_dir, plugin_id) {
         return Some(p);
     }
-    for cand in get_candidate_plugin_dirs() {
-        if cand != primary_dir {
-            if let Some(p) = find_plugin_in(&cand, plugin_id) {
-                return Some(p);
-            }
-        }
-    }
     None
+}
+
+/// Uninstalls (removes) a plugin directory by ID.
+pub fn uninstall_plugin(plugin_id: &str) -> Result<(), String> {
+    let plugin_dir = find_plugin_dir(plugin_id)
+        .ok_or_else(|| format!("Плагин '{}' не найден на диске", plugin_id))?;
+    
+    fs::remove_dir_all(&plugin_dir)
+        .map_err(|e| format!("Не удалось удалить директорию плагина '{:?}': {}", plugin_dir, e))?;
+
+    crate::log_debug(&format!("[PluginScanner] Uninstalled plugin '{}' at {:?}", plugin_id, plugin_dir));
+    Ok(())
 }
 
 /// Scans the plugins directory and returns all valid, loaded plugins.
@@ -155,47 +150,38 @@ pub fn scan_plugins(disabled_plugin_ids: &[String]) -> Vec<PluginInfo> {
 
     crate::log_debug(&format!("[PluginScanner] Primary directory: {:?}", plugins_dir));
 
-    let mut dirs_to_scan = vec![plugins_dir];
-    for cand in get_candidate_plugin_dirs() {
-        if !dirs_to_scan.contains(&cand) && cand.exists() {
-            dirs_to_scan.push(cand);
-        }
-    }
-
-    for dir in dirs_to_scan {
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    let manifest_path = path.join("manifest.json");
-                    if manifest_path.exists() && manifest_path.is_file() {
-                        if let Ok(content) = fs::read_to_string(&manifest_path) {
-                            if let Ok(mut manifest) = serde_json::from_str::<PluginManifest>(&content) {
-                                if manifest.validate_and_normalize().is_err() {
-                                    continue;
-                                }
-                                if seen_ids.contains(&manifest.id) {
-                                    continue;
-                                }
-                                let entry_path = path.join(&manifest.entry);
-                                if !entry_path.exists() {
-                                    continue;
-                                }
-                                seen_ids.insert(manifest.id.clone());
-                                let is_enabled = !disabled_plugin_ids.contains(&manifest.id);
-                                let root_path_str = path.to_string_lossy().to_string();
-
-                                crate::log_debug(&format!(
-                                    "[PluginScanner] Loaded plugin '{}' v{} ({:?}) enabled={} from {:?}",
-                                    manifest.name, manifest.version, manifest.extensions, is_enabled, path
-                                ));
-
-                                plugins.push(PluginInfo {
-                                    manifest,
-                                    root_path: root_path_str,
-                                    is_enabled,
-                                });
+    if let Ok(entries) = fs::read_dir(&plugins_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                let manifest_path = path.join("manifest.json");
+                if manifest_path.exists() && manifest_path.is_file() {
+                    if let Ok(content) = fs::read_to_string(&manifest_path) {
+                        if let Ok(mut manifest) = serde_json::from_str::<PluginManifest>(&content) {
+                            if manifest.validate_and_normalize().is_err() {
+                                continue;
                             }
+                            if seen_ids.contains(&manifest.id) {
+                                continue;
+                            }
+                            let entry_path = path.join(&manifest.entry);
+                            if !entry_path.exists() {
+                                continue;
+                            }
+                            seen_ids.insert(manifest.id.clone());
+                            let is_enabled = !disabled_plugin_ids.contains(&manifest.id);
+                            let root_path_str = path.to_string_lossy().to_string();
+
+                            crate::log_debug(&format!(
+                                "[PluginScanner] Loaded plugin '{}' v{} ({:?}) enabled={} from {:?}",
+                                manifest.name, manifest.version, manifest.extensions, is_enabled, path
+                            ));
+
+                            plugins.push(PluginInfo {
+                                manifest,
+                                root_path: root_path_str,
+                                is_enabled,
+                            });
                         }
                     }
                 }
