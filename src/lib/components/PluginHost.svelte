@@ -125,6 +125,20 @@
           invoke('reveal_in_explorer', { path: (data as any).payload.path });
         }
         break;
+
+      case 'PEEKIT_SAVE_FILE': {
+        const payload = (data as any).payload;
+        if (payload?.data) {
+          const targetPath = payload.path || payload.filePath || (payload.dir ? `${payload.dir}\\${payload.fileName}` : payload.fileName);
+          invoke('save_file_dialog_for_plugin', {
+            defaultPath: targetPath,
+            base64Data: payload.data,
+          }).catch((err) => {
+            console.error('[PluginHost] Error saving file from plugin:', err);
+          });
+        }
+        break;
+      }
     }
   }
 
@@ -175,7 +189,8 @@
     bind:this={iframeElement}
     src={iframeSrc}
     title={plugin.manifest.name}
-    sandbox="allow-scripts allow-same-origin"
+    sandbox="allow-scripts allow-same-origin allow-downloads allow-modals"
+    allow="fullscreen; file-system-access"
     class="plugin-iframe"
     onload={handleIframeLoad}
   ></iframe>

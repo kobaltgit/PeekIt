@@ -66,3 +66,59 @@
 - **Затронутые файлы:** Без изменений кода — только верификация и сборка.
 - **Статус:** [Завершено] FEAT-002 полностью реализована, протестирована и собрана.
 
+---
+
+#### [2026-09-07 07:43] • [FEAT-003] • [Проектирование]
+- **Цель:** Проектирование архитектуры наивысшего приоритета установленных и включённых плагинов над встроенными компонентами предпросмотра (Plugin Precedence).
+- **Симптомы / Проблема:**
+  - В `+page.svelte` ветки `video`, `audio`, `image`, `pdf`, `archive` располагались выше `{:else if activePlugin}`.
+  - Установленные плагины для медиа (например, `peekit-plugin-video`) или графики перехватывались дефолтными вьюерами и не запускались.
+- **Спроектированное решение:**
+  - Перенести `{:else if activePlugin}` на первое место в `<section class="viewer-body">` сразу после проверки пустого состояния `{#if !currentFile}`.
+  - Дефолтные вьюеры остаются как fallback, если плагин не найден или отключён.
+  - Добавить пересчёт `activePlugin` при закрытии модального окна настроек для мгновенного обновления открытого файла.
+- **Созданные артефакты:**
+  - [`C:\Users\Kobalt\.gemini\antigravity-ide\brain\b98c152c-c839-4939-8704-a9fb8418e1c7\implementation_plan.md`](file:///C:/Users/Kobalt/.gemini/antigravity-ide/brain/b98c152c-c839-4939-8704-a9fb8418e1c7/implementation_plan.md)
+  - [`features/plugin_precedence_plan.md`](file:///d:/Projects/active/PeekIt/features/plugin_precedence_plan.md)
+- **Статус:** [План утвержден] Пользователь согласовал план и запросил инкремент версии до 1.3.1.
+
+---
+
+#### [2026-09-07 07:45] • [FEAT-003 / REL-002] • [Разработка и бамп версии v1.3.1]
+- **Цель:** Изменение приоритета рендеринга в `+page.svelte` и обновление версии до 1.3.1 во всех конфигурационных файлах.
+- **Выполненные действия:**
+  - Обновление версии до `1.3.1` в `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`.
+  - Модификация `src/routes/+page.svelte`: перенос ветки `{:else if activePlugin}` на первое место после `{#if !currentFile}`.
+  - Добавление реактивного пересчёта `activePlugin` при закрытии модалки настроек в `handleCloseSettings()`.
+  - Верификация: `npm run check` (0 ошибок), `cargo test` (ok).
+  - Сборка дистрибутивов: `npm run tauri build` (код выхода 0).
+  - Упаковка через `scratch/package_release.ps1` в `output/`:
+    - `Peekit_1.3.1_x64-setup.exe` (3,672,562 байт) → SHA-256: `8EB821434A10079C44C01957938D4EB2DD61A71B100AF43EF40A9430996A4047`
+    - `Peekit_1.3.1_x64_en-US.msi` (5,877,760 байт) → SHA-256: `680495E8B9D8CF722ED8068AE282D12B06244E8A6DC595C8B351332F42B86D28`
+    - `Peekit_v1.3.1_Portable.zip` (5,503,331 байт) → SHA-256: `041581D556A90F8D5BDFF3A7D7B8DAFF0EFDAB405E96722E38FE82E64568D560`
+  - Создан документ [`RELEASE_NOTES_v1.3.1.md`](file:///d:/Projects/active/PeekIt/RELEASE_NOTES_v1.3.1.md).
+- **Статус:** [Завершено] FEAT-003 и выпуск релиза v1.3.1 успешно завершены.
+
+---
+
+#### [2026-09-07 08:27] • [FEAT-004] • [Разработка и сборка]
+- **Цель:** Реализация системного диалога Windows «Сохранить как...» для плагинов (экспорт медиа/кадров/файлов) и актуализация отображения версии 1.3.1 в окне «О программе».
+- **Выполненные действия:**
+  - Добавление команды `PEEKIT_SAVE_FILE` в [`src/lib/plugins/protocol.ts`](file:///d:/Projects/active/PeekIt/src/lib/plugins/protocol.ts).
+  - Обработка `PEEKIT_SAVE_FILE` в [`src/lib/components/PluginHost.svelte`](file:///d:/Projects/active/PeekIt/src/lib/components/PluginHost.svelte) и расширение прав iframe sandbox (`allow-downloads allow-modals`, `allow="fullscreen; file-system-access"`).
+  - Реализация Tauri-команды `save_file_dialog_for_plugin` с декодированием Base64 и вызовом нативного диалога сохранения в [`src-tauri/src/commands.rs`](file:///d:/Projects/active/PeekIt/src-tauri/src/commands.rs).
+  - Регистрация команды в `invoke_handler` в [`src-tauri/src/lib.rs`](file:///d:/Projects/active/PeekIt/src-tauri/src/lib.rs).
+  - Исправление отображения версии в [`src/lib/components/SettingsModal.svelte`](file:///d:/Projects/active/PeekIt/src/lib/components/SettingsModal.svelte) (1.3.0 -> 1.3.1).
+  - Проверка типов: `npm run check` — 0 ошибок.
+  - Компиляция бэкенда: `cargo check` — 0 ошибок.
+  - Полная сборка релизных пакетов: `npm run tauri build` — код выхода 0.
+  - Артефакты обновлены в `output/`:
+    - `Peekit_1.3.1_x64-setup.exe` (3,683,036 байт) → SHA-256: `7249E9AA5DB937FAEDFF382CAECE7C0A2085681449FB48CAD60B61D3308D1F26`
+    - `Peekit_1.3.1_x64_en-US.msi` (5,894,144 байт) → SHA-256: `49259F8D92374C51B15D8AA8F431B5421B835625DF1FE9BA5C4451EE9AFFDF22`
+    - `Peekit_v1.3.1_Portable.zip` (5,503,331 байт) → SHA-256: `93336F4D6EABA67388E4E2B527A6FDD354FF3D408A27B80A2DAB752F2365DA0E`
+- **Статус:** [Завершено] FEAT-004 успешно реализована, протестирована и собрана.
+
+
+
+
+

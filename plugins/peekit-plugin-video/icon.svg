@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="vidGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="100%" stop-color="#818cf8"/>
+    </linearGradient>
+    <linearGradient id="trimGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#ef4444"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Rounded Rect -->
+  <rect x="4" y="8" width="40" height="32" rx="8" fill="#1e293b" stroke="url(#vidGrad)" stroke-width="2"/>
+  <!-- Filmstrip perforations top and bottom -->
+  <rect x="8" y="11" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="16" y="11" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="24" y="11" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="32" y="11" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="8" y="34" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="16" y="34" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="24" y="34" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <rect x="32" y="34" width="4" height="3" rx="1" fill="#38bdf8" opacity="0.6"/>
+  <!-- Play triangle in center -->
+  <polygon points="20,18 32,24 20,30" fill="url(#vidGrad)"/>
+  <!-- Small scissors accent icon in bottom right -->
+  <circle cx="36" cy="34" r="5" fill="#0f172a" stroke="url(#trimGrad)" stroke-width="1.5"/>
+  <path d="M34 32 L38 36 M34 36 L38 32" stroke="#f59e0b" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

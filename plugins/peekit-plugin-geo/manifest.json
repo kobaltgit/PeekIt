@@ -1,0 +1,26 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kobaltgit/peekit-plugins/main/plugin-schema.json",
+  "id": "com.peekit.geo-viewer",
+  "name": "Geo Tracks & Maps Viewer",
+  "version": "1.1.0",
+  "author": "Kobalt",
+  "description": "Interactive map viewer for GPX, KML, and GeoJSON tracks with real map tiles, elevation profile, and journey metrics",
+  "extensions": [
+    ".gpx",
+    ".kml",
+    ".geojson"
+  ],
+  "entry": "index.html",
+  "min_peekit_version": "1.0.0",
+  "permissions": [
+    "read_file",
+    "clipboard_write"
+  ],
+  "icon": "icon.svg",
+  "category": "Utilities",
+  "homepage": "https://github.com/kobaltgit/peekit-plugins",
+  "default_dimensions": {
+    "width": 960,
+    "height": 640
+  }
+}

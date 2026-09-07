@@ -10,6 +10,8 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **[FEAT-001](#feat-001)** | Core / Plugins | Поддержка плагинов для просмотра содержимого папок | High | Completed | v1.3.0 | [v1.3.0_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md) |
 | **[FEAT-002](#feat-002)** | System / UX | Система проверки и уведомления об обновлениях (Updater в стиле MiniBin) | Medium | Completed | v1.3.0 | [features/updater_plan.md](file:///d:/Projects/active/PeekIt/features/updater_plan.md) |
+| **[FEAT-003](#feat-003)** | Core / Plugins | Приоритет установленных плагинов над встроенными вьюерами (Plugin Precedence) | High | Completed | v1.3.1 | [features/plugin_precedence_plan.md](file:///d:/Projects/active/PeekIt/features/plugin_precedence_plan.md) |
+| **[FEAT-004](#feat-004)** | Core / Plugins | Системный диалог «Сохранить как...» для плагинов (Plugin Save Dialog API) | Medium | Completed | v1.3.1 | [features/worklog.md](file:///d:/Projects/active/PeekIt/features/worklog.md) |
 
 ---
 
@@ -56,6 +58,28 @@
 
 ---
 
+### <a id="feat-003"></a>FEAT-003: Приоритет установленных плагинов над встроенными вьюерами (Plugin Precedence)
+* **Цель:** Предоставить установленным и включённым плагинам наивысший приоритет маршрутизации предпросмотра перед встроенными компонентами (по аналогии с QuickLook, VS Code и Obsidian).
+* **Архитектурные изменения:**
+  * Перенос ветки `{:else if activePlugin}` на первое место сразу после `{#if !currentFile}` в [`src/routes/+page.svelte`](file:///d:/Projects/active/PeekIt/src/routes/+page.svelte).
+  * Дефолтные вьюеры (`MediaPreview`, `ImagePreview`, `PdfPreview`, `ArchivePreview`, `CodePreview`, `MarkdownPreview`) выступают в роли fallback-просмотрщиков, когда плагин не установлен или отключён.
+  * Обеспечение моментального пересчёта `activePlugin` при закрытии настроек после включения/отключения плагина.
+* **Статус:** **Completed** (Реализовано в `+page.svelte`, скомпилированы и упакованы сборки v1.3.1 в `output/`).
+
+---
+
+### <a id="feat-004"></a>FEAT-004: Системный диалог Windows «Сохранить как...» для плагинов (Plugin Save Dialog API)
+* **Цель:** Позволить плагинам (например, `com.peekit.video-player` для экспорта кадров/GIF/отрезков видео) вызывать нативный диалог сохранения Windows с предустановленным путём/именем файла и сохранять Base64-данные на диск через Tauri backend.
+* **Архитектурные изменения:**
+  * Добавление сообщения `PEEKIT_SAVE_FILE` в протокол хост-плагин ([`src/lib/plugins/protocol.ts`](file:///d:/Projects/active/PeekIt/src/lib/plugins/protocol.ts)).
+  * Обработка `PEEKIT_SAVE_FILE` в [`src/lib/components/PluginHost.svelte`](file:///d:/Projects/active/PeekIt/src/lib/components/PluginHost.svelte), добавление sandbox-прав `allow-downloads allow-modals` и `allow="fullscreen; file-system-access"`.
+  * Реализация команды Tauri `save_file_dialog_for_plugin` в Rust бэкенде ([`src-tauri/src/commands.rs`](file:///d:/Projects/active/PeekIt/src-tauri/src/commands.rs)) с использованием `tauri_plugin_dialog::DialogExt`.
+  * Регистрация команды в [`src-tauri/src/lib.rs`](file:///d:/Projects/active/PeekIt/src-tauri/src/lib.rs).
+  * Обновление текста версии 1.3.1 в окне «О программе» ([`SettingsModal.svelte`](file:///d:/Projects/active/PeekIt/src/lib/components/SettingsModal.svelte)).
+* **Статус:** **Completed** (Проверено проверкой типов, тестами и полной сборкой дистрибутивов).
+
+---
+
 ## 3. Хронология работы над функционалом (Timeline)
 
 | Дата | Фича | Действие |
@@ -64,3 +88,10 @@
 | **2026-09-07** | **FEAT-002** | Обсуждение и утверждение архитектуры системы обновлений по образу и подобию MiniBin (без изменения версии программы). |
 | **2026-09-07** | **Система** | Создана папка [`features/`](file:///d:/Projects/active/PeekIt/features), запущен оперативный журнал [`features/worklog.md`](file:///d:/Projects/active/PeekIt/features/worklog.md) и сформирован протокол агента `feature-tracker`. |
 | **2026-09-07** | **FEAT-002** | Реализация завершена: `updater.rs` (бэкенд), UI карточка обновлений в `SettingsModal.svelte`, i18n-ключи, unit-тесты (4/4 pass), сборка 3 дистрибутивов. Статус → **Completed**. |
+| **2026-09-07** | **FEAT-003** | Проектирование архитектуры приоритета плагинов над встроенными вьюерами (Plugin Precedence). Создан план [`features/plugin_precedence_plan.md`](file:///d:/Projects/active/PeekIt/features/plugin_precedence_plan.md). |
+| **2026-09-07** | **FEAT-003** | Реализован наивысший приоритет плагинов в `+page.svelte`. Выполнен инкремент версии до 1.3.1. Успешно собраны дистрибутивы `output/` (Setup, MSI, Portable ZIP). Статус → **Completed**. |
+| **2026-09-07** | **FEAT-004** | Реализован API диалога сохранения `PEEKIT_SAVE_FILE` в Rust и Svelte, обновлена версия в окне «О программе», успешно пересобраны все дистрибутивы v1.3.1. Статус → **Completed**. |
+
+
+
+

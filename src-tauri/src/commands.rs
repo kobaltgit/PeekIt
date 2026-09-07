@@ -273,3 +273,37 @@ pub fn check_for_updates(app: AppHandle, force: bool) -> Result<crate::updater::
     crate::updater::check_updates_with_cooldown(&app, force)
 }
 
+#[tauri::command]
+pub async fn save_file_dialog_for_plugin(
+    app: tauri::AppHandle,
+    default_path: Option<String>,
+    base64_data: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    use base64::Engine;
+
+    let mut builder = app.dialog().file();
+    if let Some(ref dp) = default_path {
+        let p = std::path::Path::new(dp);
+        if let Some(parent) = p.parent() {
+            builder = builder.set_directory(parent);
+        }
+        if let Some(file_name) = p.file_name().and_then(|s| s.to_str()) {
+            builder = builder.set_file_name(file_name);
+        }
+    }
+
+    if let Some(path) = builder.blocking_save_file() {
+        let path_str = path.to_string();
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(&base64_data)
+            .map_err(|e| format!("Base64 decode error: {}", e))?;
+        std::fs::write(&path_str, bytes).map_err(|e| format!("File write error: {}", e))?;
+        crate::log_debug(&format!("[PluginSave] File successfully saved to: {}", path_str));
+        Ok(Some(path_str))
+    } else {
+        Ok(None)
+    }
+}
+
+

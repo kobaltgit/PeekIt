@@ -1,6 +1,6 @@
 {
   "name": "peekit",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "description": "Peekit - Instant Spacebar File Preview for Windows",
   "type": "module",
   "scripts": {

@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pro Video Player & Trimmer</title>
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-card: rgba(15, 23, 42, 0.82);
+      --bg-card-border: rgba(255, 255, 255, 0.1);
+      --bg-hover: rgba(255, 255, 255, 0.08);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --accent: #38bdf8;
+      --accent-rgb: 56, 189, 248;
+      --trim-accent: #f59e0b;
+      --trim-rgb: 245, 158, 11;
+      --danger: #ef4444;
+      --success: #10b981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-main);
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    .header-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      background: linear-gradient(180deg, rgba(9, 13, 22, 0.9) 0%, rgba(9, 13, 22, 0.4) 70%, transparent 100%);
+      pointer-events: auto;
+      transition: opacity 0.25s ease;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .video-icon-badge {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .video-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 280px;
+    }
+
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .meta-chip.chip-format {
+      color: var(--accent);
+      border-color: rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.12);
+    }
+
+    .meta-chip.chip-trim {
+      color: var(--trim-accent);
+      border-color: rgba(245, 158, 11, 0.35);
+      background: rgba(245, 158, 11, 0.15);
+      display: none;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-top {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      height: 28px;
+      padding: 0 10px;
+      background: var(--bg-card);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-top:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-top.btn-trim-active {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: var(--trim-accent);
+      color: var(--trim-accent);
+    }
+
+    /* Immersive In-Window Fullscreen */
+    body.in-window-fullscreen .header-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 60;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      background: linear-gradient(180deg, rgba(9, 13, 22, 0.95) 0%, transparent 100%);
+    }
+
+    body.in-window-fullscreen:hover .header-bar,
+    body.in-window-fullscreen .header-bar:focus-within {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* Main Video Viewport */
+    .viewport {
+      position: relative;
+      flex: 1;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
+      overflow: hidden;
+      cursor: default;
+    }
+
+    .viewport.zoomed {
+      cursor: grab;
+    }
+
+    .viewport.zoomed:active {
+      cursor: grabbing;
+    }
+
+    .video-canvas-container {
+      position: relative;
+      transform-origin: center center;
+      transition: transform 0.05s ease-out;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    video#mainVideo {
+      max-width: 100vw;
+      max-height: 100vh;
+      display: block;
+      object-fit: contain;
+      pointer-events: auto;
+    }
+
+    /* Big Center Action Ripple */
+    .center-action-ripple {
+      position: absolute;
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.7);
+      transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.2s ease;
+      z-index: 20;
+    }
+
+    .center-action-ripple.animate {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+
+    /* Bottom Floating Controls Container */
+    .controls-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 50;
+      display: flex;
+      flex-direction: column;
+      padding: 0 16px 14px 16px;
+      background: linear-gradient(0deg, rgba(9, 13, 22, 0.95) 0%, rgba(9, 13, 22, 0.6) 75%, transparent 100%);
+      pointer-events: auto;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .controls-overlay.auto-hidden {
+      opacity: 0;
+      transform: translateY(12px);
+      pointer-events: none;
+    }
+
+    /* Timeline Section */
+    .timeline-container {
+      position: relative;
+      width: 100%;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin-bottom: 8px;
+    }
+
+    .timeline-track {
+      position: relative;
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+      overflow: visible;
+      transition: height 0.15s ease;
+    }
+
+    .timeline-container:hover .timeline-track {
+      height: 9px;
+    }
+
+    .timeline-buffered {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: rgba(255, 255, 255, 0.25);
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    .timeline-trim-region {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0%;
+      width: 100%;
+      background: rgba(245, 158, 11, 0.35);
+      border-top: 1px solid var(--trim-accent);
+      border-bottom: 1px solid var(--trim-accent);
+      pointer-events: none;
+      display: none;
+    }
+
+    .timeline-progress {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    .timeline-playhead {
+      position: absolute;
+      left: 0%;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.8), 0 2px 4px rgba(0,0,0,0.5);
+      transform: translate(-50%, -50%) scale(0.65);
+      transition: transform 0.12s ease;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .timeline-container:hover .timeline-playhead,
+    .timeline-playhead.dragging {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    /* Trim Handles */
+    .trim-handle {
+      position: absolute;
+      top: -6px;
+      bottom: -6px;
+      width: 10px;
+      background: var(--trim-accent);
+      border-radius: 3px;
+      box-shadow: 0 0 8px rgba(245, 158, 11, 0.7);
+      cursor: ew-resize;
+      display: none;
+      z-index: 10;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .trim-handle::after {
+      content: '';
+      width: 2px;
+      height: 10px;
+      background: #0f172a;
+      border-radius: 1px;
+    }
+
+    .trim-handle#handleIn {
+      left: 0%;
+      transform: translateX(-50%);
+    }
+
+    .trim-handle#handleOut {
+      left: 100%;
+      transform: translateX(-50%);
+    }
+
+    .timeline-tooltip {
+      position: absolute;
+      bottom: 26px;
+      padding: 3px 8px;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent);
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #ffffff;
+      pointer-events: none;
+      display: none;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Bottom Control Bar Row */
+    .controls-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .ctrl-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      font-size: 12px;
+    }
+
+    .ctrl-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-main);
+    }
+
+    .ctrl-btn.btn-accent {
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+    }
+
+    .ctrl-btn.btn-accent:hover {
+      background: rgba(56, 189, 248, 0.25);
+    }
+
+    .ctrl-btn.active {
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.2);
+    }
+
+    .ctrl-btn.trim-active {
+      color: var(--trim-accent);
+      background: rgba(245, 158, 11, 0.2);
+    }
+
+    /* Time Display */
+    .time-display {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-main);
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 4px;
+    }
+
+    .time-display .time-dur {
+      color: var(--text-dim);
+    }
+
+    /* Volume Slider */
+    .volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .volume-slider {
+      width: 65px;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ffffff;
+      cursor: pointer;
+      border: none;
+    }
+
+    .speed-select {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 5px;
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 6px;
+      cursor: pointer;
+      outline: none;
+    }
+
+    /* Export Modal Dialog */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-box {
+      width: 440px;
+      max-width: 90vw;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      animation: modalPop 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes modalPop {
+      from { transform: scale(0.92); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .modal-close:hover {
+      color: #ffffff;
+    }
+
+    .export-preview-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .export-stat-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+    }
+
+    .export-stat-row .label { color: var(--text-muted); }
+    .export-stat-row .val { color: var(--text-main); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+    .export-btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .export-btn {
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--bg-hover);
+      border: 1px solid var(--bg-card-border);
+      color: #ffffff;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-align: center;
+    }
+
+    .export-btn:hover {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.12);
+      transform: translateY(-2px);
+    }
+
+    .export-btn.btn-gif:hover {
+      border-color: var(--trim-accent);
+      background: rgba(245, 158, 11, 0.12);
+    }
+
+    .export-btn .btn-icon { font-size: 22px; }
+    .export-btn .btn-title { font-size: 13px; font-weight: 600; }
+    .export-btn .btn-desc { font-size: 11px; color: var(--text-muted); }
+
+    .export-progress-wrap {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.1s linear;
+    }
+
+    .progress-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* Toast notification */
+    .toast-pill {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      padding: 8px 16px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      backdrop-filter: blur(12px);
+      color: #ffffff;
+      font-size: 12px;
+      font-weight: 600;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .toast-pill.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 1000;
+      background: var(--bg-base);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(56, 189, 248, 0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <span id="txtLoading">Загрузка видео...</span>
+  </div>
+
+  <!-- Toast Pill -->
+  <div class="toast-pill" id="toastPill">📷 Кадр скопирован в буфер обмена</div>
+
+  <!-- Top Navigation Bar -->
+  <header class="header-bar" id="headerBar">
+    <div class="header-left">
+      <div class="video-icon-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm0 2v12h16V6H4zm6 3l6 3-6 3V9z"/>
+        </svg>
+      </div>
+      <div class="video-title" id="videoTitle">Видеофайл</div>
+      <div class="meta-chip chip-format" id="chipFormat">MP4</div>
+      <div class="meta-chip" id="chipResolution">--×--</div>
+      <div class="meta-chip chip-trim" id="chipTrim">✂️ Выделен фрагмент</div>
+    </div>
+
+    <div class="header-right">
+      <button class="btn-top" id="btnSnapshot" title="Скопировать кадр в буфер обмена (Ctrl+C)">
+        📷 Снимок
+      </button>
+
+      <button class="btn-top" id="btnToggleTrim" title="Включить маркеры обрезки (I / O)">
+        ✂️ Вырезать
+      </button>
+
+      <button class="btn-top" id="btnRotate" title="Повернуть видео на 90° (R)">
+        🔄 <span id="lblRotate">0°</span>
+      </button>
+
+      <div class="zoom-controls-group" style="display:inline-flex;align-items:center;background:var(--bg-card);border:1px solid var(--bg-card-border);border-radius:6px;overflow:hidden;">
+        <button class="btn-top" id="btnZoomOut" title="Уменьшить масштаб (Колёсико вниз)" style="border:none;border-radius:0;padding:0 8px;height:28px;">−</button>
+        <button class="btn-top" id="btnResetZoom" title="Сбросить масштаб (100%)" style="border:none;border-radius:0;border-left:1px solid rgba(255,255,255,0.08);border-right:1px solid rgba(255,255,255,0.08);padding:0 8px;height:28px;">
+          🔍 <span id="lblZoom">100%</span>
+        </button>
+        <button class="btn-top" id="btnZoomIn" title="Увеличить масштаб (Колёсико вверх)" style="border:none;border-radius:0;padding:0 8px;height:28px;">+</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport Area -->
+  <main class="viewport" id="viewport">
+    <div class="video-canvas-container" id="videoContainer">
+      <video id="mainVideo" playsinline autoplay preload="auto"></video>
+    </div>
+
+    <!-- Center Play/Pause Ripple Indicator -->
+    <div class="center-action-ripple" id="actionRipple">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" id="iconRipple">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+    </div>
+  </main>
+
+  <!-- Bottom Controls Overlay -->
+  <footer class="controls-overlay" id="controlsOverlay">
+    
+    <!-- Timeline -->
+    <div class="timeline-container" id="timelineContainer">
+      <div class="timeline-track" id="timelineTrack">
+        <div class="timeline-buffered" id="timelineBuffered"></div>
+        <div class="timeline-trim-region" id="trimRegion"></div>
+        <div class="timeline-progress" id="timelineProgress"></div>
+        <div class="timeline-playhead" id="playhead"></div>
+        <div class="trim-handle" id="handleIn" title="Начало фрагмента (I)"></div>
+        <div class="trim-handle" id="handleOut" title="Конец фрагмента (O)"></div>
+      </div>
+      <div class="timeline-tooltip" id="timelineTooltip">00:00.000</div>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="controls-row">
+      <div class="ctrl-group">
+        <!-- Play / Pause -->
+        <button class="ctrl-btn btn-accent" id="btnPlayPause" title="Воспроизведение / Пауза (Space)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" id="svgPlay">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </button>
+
+        <!-- Step Back 1 Frame -->
+        <button class="ctrl-btn" id="btnStepBack" title="Шаг на 1 кадр назад (Запятая <)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="19 20 9 12 19 4 19 20"/>
+            <line x1="5" y1="4" x2="5" y2="20" stroke="currentColor" stroke-width="3"/>
+          </svg>
+        </button>
+
+        <!-- Step Forward 1 Frame -->
+        <button class="ctrl-btn" id="btnStepForward" title="Шаг на 1 кадр вперёд (Точка >)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 4 15 12 5 20 5 4"/>
+            <line x1="19" y1="19" x2="19" y2="20" stroke="currentColor" stroke-width="3"/>
+          </svg>
+        </button>
+
+        <!-- Time Display -->
+        <div class="time-display">
+          <span id="txtCurrentTime">00:00.000</span>
+          <span class="time-dur">/</span>
+          <span class="time-dur" id="txtDuration">00:00.000</span>
+        </div>
+      </div>
+
+      <!-- Center Trim Actions -->
+      <div class="ctrl-group">
+        <button class="ctrl-btn" id="btnSetIn" title="Установить начало фрагмента (I)">
+          [ I
+        </button>
+        <button class="ctrl-btn" id="btnSetOut" title="Установить конец фрагмента (O)">
+          O ]
+        </button>
+        <button class="ctrl-btn" id="btnLoop" title="Зацикливание (Все / Фрагмент / Выкл)">
+          🔁
+        </button>
+        <button class="ctrl-btn" id="btnExportDialog" title="Экспортировать вырезанный фрагмент" style="display: none; color: var(--trim-accent);">
+          ✂️ Экспорт
+        </button>
+      </div>
+
+      <!-- Right Controls -->
+      <div class="ctrl-group">
+        <!-- Speed Dropdown -->
+        <select class="speed-select" id="selSpeed" title="Скорость воспроизведения">
+          <option value="0.25">0.25x</option>
+          <option value="0.5">0.5x</option>
+          <option value="0.75">0.75x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.25">1.25x</option>
+          <option value="1.5">1.5x</option>
+          <option value="2">2.0x</option>
+          <option value="3">3.0x</option>
+        </select>
+
+        <!-- Volume Boost Button -->
+        <button class="ctrl-btn" id="btnBoostVolume" title="Усиление звука: 100% / 200%">
+          ⚡ 100%
+        </button>
+
+        <!-- Volume Group -->
+        <div class="volume-wrap">
+          <button class="ctrl-btn" id="btnMute" title="Отключить звук (M)">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" id="svgVol">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+              <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+            </svg>
+          </button>
+          <input type="range" class="volume-slider" id="sliderVolume" min="0" max="1" step="0.05" value="1">
+        </div>
+
+        <!-- Fullscreen -->
+        <button class="ctrl-btn" id="btnFullscreen" title="Полноэкранный режим (F)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Export Dialog Modal -->
+  <div class="modal-backdrop" id="exportModal">
+    <div class="modal-box">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>✂️ Экспорт фрагмента</span>
+        </div>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+
+      <div class="export-preview-card">
+        <div class="export-stat-row">
+          <span class="label">Начало:</span>
+          <span class="val" id="lblExportStart">00:00.000</span>
+        </div>
+        <div class="export-stat-row">
+          <span class="label">Конец:</span>
+          <span class="val" id="lblExportEnd">00:00.000</span>
+        </div>
+        <div class="export-stat-row">
+          <span class="label">Длительность:</span>
+          <span class="val" id="lblExportDur" style="color: var(--accent);">0.00 сек</span>
+        </div>
+        <div class="export-stat-row">
+          <span class="label">Папка:</span>
+          <span class="val" id="lblExportFolder" style="font-size:11px;color:var(--text-muted);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Рядом с исходным файлом">Рядом с исходным файлом</span>
+        </div>
+      </div>
+
+      <div class="export-btn-grid" id="exportBtnGrid">
+        <button class="export-btn" id="btnExportVideo">
+          <span class="btn-icon">🎬</span>
+          <span class="btn-title">Видеоклип</span>
+          <span class="btn-desc">Сохранить как WebM/MP4</span>
+        </button>
+
+        <button class="export-btn btn-gif" id="btnExportGif">
+          <span class="btn-icon">🎞️</span>
+          <span class="btn-title">Анимация GIF</span>
+          <span class="btn-desc">Для чатов и баг-репортов</span>
+        </button>
+      </div>
+
+      <div class="export-progress-wrap" id="exportProgressWrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-status" id="progressStatus">Обработка фрагмента...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // IPC Protocol to talk with PeekIt host
+      function sendToHost(type, payload = {}) {
+        try {
+          window.parent.postMessage({ type, payload }, '*');
+        } catch (e) {
+          console.error('[VideoPlayer] PostMessage error:', e);
+        }
+      }
+
+      let readyInterval = setInterval(() => sendToHost('PEEKIT_READY'), 80);
+      sendToHost('PEEKIT_READY');
+
+      // Elements
+      const video = document.getElementById('mainVideo');
+      const videoContainer = document.getElementById('videoContainer');
+      const viewport = document.getElementById('viewport');
+      const headerBar = document.getElementById('headerBar');
+      const controlsOverlay = document.getElementById('controlsOverlay');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      const toastPill = document.getElementById('toastPill');
+
+      const videoTitle = document.getElementById('videoTitle');
+      const chipFormat = document.getElementById('chipFormat');
+      const chipResolution = document.getElementById('chipResolution');
+      const chipTrim = document.getElementById('chipTrim');
+
+      const timelineContainer = document.getElementById('timelineContainer');
+      const timelineTrack = document.getElementById('timelineTrack');
+      const timelineBuffered = document.getElementById('timelineBuffered');
+      const timelineProgress = document.getElementById('timelineProgress');
+      const playhead = document.getElementById('playhead');
+      const trimRegion = document.getElementById('trimRegion');
+      const handleIn = document.getElementById('handleIn');
+      const handleOut = document.getElementById('handleOut');
+      const timelineTooltip = document.getElementById('timelineTooltip');
+
+      const btnPlayPause = document.getElementById('btnPlayPause');
+      const svgPlay = document.getElementById('svgPlay');
+      const btnStepBack = document.getElementById('btnStepBack');
+      const btnStepForward = document.getElementById('btnStepForward');
+      const txtCurrentTime = document.getElementById('txtCurrentTime');
+      const txtDuration = document.getElementById('txtDuration');
+
+      const btnToggleTrim = document.getElementById('btnToggleTrim');
+      const btnSetIn = document.getElementById('btnSetIn');
+      const btnSetOut = document.getElementById('btnSetOut');
+      const btnLoop = document.getElementById('btnLoop');
+      const btnExportDialog = document.getElementById('btnExportDialog');
+
+      const selSpeed = document.getElementById('selSpeed');
+      const btnBoostVolume = document.getElementById('btnBoostVolume');
+      const btnMute = document.getElementById('btnMute');
+      const sliderVolume = document.getElementById('sliderVolume');
+      const btnRotate = document.getElementById('btnRotate');
+      const lblRotate = document.getElementById('lblRotate');
+      const btnResetZoom = document.getElementById('btnResetZoom');
+      const btnZoomIn = document.getElementById('btnZoomIn');
+      const btnZoomOut = document.getElementById('btnZoomOut');
+      const lblZoom = document.getElementById('lblZoom');
+      const btnSnapshot = document.getElementById('btnSnapshot');
+      const btnFullscreen = document.getElementById('btnFullscreen');
+      const actionRipple = document.getElementById('actionRipple');
+      const iconRipple = document.getElementById('iconRipple');
+
+      const exportModal = document.getElementById('exportModal');
+      const btnCloseModal = document.getElementById('btnCloseModal');
+      const lblExportStart = document.getElementById('lblExportStart');
+      const lblExportEnd = document.getElementById('lblExportEnd');
+      const lblExportDur = document.getElementById('lblExportDur');
+      const lblExportFolder = document.getElementById('lblExportFolder');
+      const exportBtnGrid = document.getElementById('exportBtnGrid');
+      const exportProgressWrap = document.getElementById('exportProgressWrap');
+      const progressFill = document.getElementById('progressFill');
+      const progressStatus = document.getElementById('progressStatus');
+      const btnExportVideo = document.getElementById('btnExportVideo');
+      const btnExportGif = document.getElementById('btnExportGif');
+
+      // State
+      let zoomLevel = 1.0;
+      let panX = 0;
+      let panY = 0;
+      let isDragging = false;
+      let dragStartX = 0;
+      let dragStartY = 0;
+      let rotation = 0;
+
+      let trimMode = false;
+      let inPoint = 0;
+      let outPoint = 0;
+      let loopMode = 'none'; // 'none' | 'all' | 'range'
+
+      let isTimelineDragging = false;
+      let isDraggingInHandle = false;
+      let isDraggingOutHandle = false;
+
+      let audioCtx = null;
+      let gainNode = null;
+      let sourceNode = null;
+      let isBoosted = false;
+
+      let rawBlobUrl = null;
+      let fileNameBase = 'video';
+      let originalFilePath = '';
+      let originalFileDir = '';
+      let autoHideTimer = null;
+
+      // Helper to save file with native Save Picker dialog or clear download notification
+      async function saveExportedFile(blob, defaultFileName, formatTitle) {
+        // 1. Попытка через File System Access API (открывает системный диалог проводника "Сохранить как...",
+        // где пользователь сразу видит папку и может сохранить файл рядом с видео)
+        if (window.showSaveFilePicker) {
+          try {
+            const extMatch = defaultFileName.match(/\.[^.]+$/);
+            const ext = extMatch ? extMatch[0] : '';
+            const mime = blob.type || 'application/octet-stream';
+            const handle = await window.showSaveFilePicker({
+              suggestedName: defaultFileName,
+              types: [{
+                description: formatTitle,
+                accept: { [mime]: [ext] }
+              }]
+            });
+            const writable = await handle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+            showToast(`✅ ${formatTitle} успешно сохранён!`);
+            return true;
+          } catch (e) {
+            if (e.name === 'AbortError') {
+              // Пользователь сам нажал "Отмена" в проводнике
+              return false;
+            }
+            console.warn('[VideoPlayer] showSaveFilePicker fallback:', e);
+          }
+        }
+
+        // 2. Отправка команды хосту PeekIt
+        const destPath = originalFileDir
+          ? (originalFileDir + (originalFileDir.includes('/') ? '/' : '\\') + defaultFileName)
+          : defaultFileName;
+
+        try {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const res = reader.result ? String(reader.result) : '';
+            const base64Data = res.includes(',') ? res.split(',')[1] : res;
+            sendToHost('PEEKIT_SAVE_FILE', {
+              path: destPath,
+              filePath: destPath,
+              dir: originalFileDir,
+              fileName: defaultFileName,
+              data: base64Data,
+              mimeType: blob.type
+            });
+          };
+          reader.readAsDataURL(blob);
+        } catch (e) {}
+
+        // 3. Скачивание через браузер (файл попадает в системную папку Загрузки/Downloads)
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = defaultFileName;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+          }, 2000);
+
+          showToast(`💾 Сохранено в "Загрузки": ${defaultFileName}`);
+          return true;
+        } catch (err) {
+          console.error('[VideoPlayer] Download error:', err);
+          showToast(`❌ Ошибка сохранения: ${err.message}`);
+          return false;
+        }
+      }
+
+      // Formatting helper
+      function formatTime(seconds) {
+        if (isNaN(seconds) || seconds < 0) seconds = 0;
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        const ms = Math.floor((seconds % 1) * 1000);
+
+        const pad = (n, len = 2) => String(n).padStart(len, '0');
+        if (h > 0) {
+          return `${pad(h)}:${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
+        }
+        return `${pad(m)}:${pad(s)}.${pad(ms, 3)}`;
+      }
+
+      function showToast(msg) {
+        toastPill.textContent = msg;
+        toastPill.classList.add('show');
+        setTimeout(() => toastPill.classList.remove('show'), 2200);
+      }
+
+      function showRipple(isPlay) {
+        iconRipple.innerHTML = isPlay 
+          ? '<polygon points="5 3 19 12 5 21 5 3"/>'
+          : '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        actionRipple.classList.remove('animate');
+        void actionRipple.offsetWidth;
+        actionRipple.classList.add('animate');
+        setTimeout(() => actionRipple.classList.remove('animate'), 300);
+      }
+
+      // Update Pan/Zoom Transform
+      function updateTransform() {
+        videoContainer.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel}) rotate(${rotation}deg)`;
+        lblZoom.textContent = Math.round(zoomLevel * 100) + '%';
+        lblRotate.textContent = rotation + '°';
+        if (zoomLevel > 1.05) {
+          viewport.classList.add('zoomed');
+        } else {
+          viewport.classList.remove('zoomed');
+        }
+      }
+
+      function resetZoom() {
+        zoomLevel = 1.0;
+        panX = 0;
+        panY = 0;
+        updateTransform();
+      }
+
+      // Wheel Zoom
+      viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 1.15 : 0.85;
+        const newZoom = Math.min(Math.max(1.0, zoomLevel * delta), 5.0);
+        if (newZoom === 1.0) {
+          panX = 0;
+          panY = 0;
+        }
+        zoomLevel = newZoom;
+        updateTransform();
+      }, { passive: false });
+
+      // Pan Dragging
+      viewport.addEventListener('mousedown', (e) => {
+        if (e.target !== video && e.target !== viewport) return;
+        if (e.button === 0 && zoomLevel > 1.05) {
+          isDragging = true;
+          dragStartX = e.clientX - panX;
+          dragStartY = e.clientY - panY;
+        }
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        panX = e.clientX - dragStartX;
+        panY = e.clientY - dragStartY;
+        updateTransform();
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      // Double click to toggle play or reset zoom
+      viewport.addEventListener('dblclick', (e) => {
+        if (zoomLevel > 1.05) {
+          resetZoom();
+        } else {
+          toggleFullscreen();
+        }
+      });
+
+      // Click on video toggles play/pause
+      video.addEventListener('click', (e) => {
+        if (zoomLevel <= 1.05) {
+          togglePlayPause();
+        }
+      });
+
+      // Auto-hide controls on inactivity
+      function resetControlsAutoHide() {
+        controlsOverlay.classList.remove('auto-hidden');
+        headerBar.style.opacity = '1';
+        if (autoHideTimer) clearTimeout(autoHideTimer);
+        if (!video.paused) {
+          autoHideTimer = setTimeout(() => {
+            if (!video.paused && !isTimelineDragging && !exportModal.style.display.includes('flex')) {
+              controlsOverlay.classList.add('auto-hidden');
+              headerBar.style.opacity = '0';
+            }
+          }, 2500);
+        }
+      }
+
+      window.addEventListener('mousemove', resetControlsAutoHide);
+
+      // Playback Logic
+      function togglePlayPause() {
+        if (video.paused || video.ended) {
+          // If range loop is on and we are past outPoint, restart at inPoint
+          if (trimMode && video.currentTime >= outPoint) {
+            video.currentTime = inPoint;
+          }
+          video.play();
+          showRipple(true);
+        } else {
+          video.pause();
+          showRipple(false);
+        }
+        resetControlsAutoHide();
+      }
+
+      video.addEventListener('play', () => {
+        svgPlay.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+        resetControlsAutoHide();
+      });
+
+      video.addEventListener('pause', () => {
+        svgPlay.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        controlsOverlay.classList.remove('auto-hidden');
+        headerBar.style.opacity = '1';
+      });
+
+      btnPlayPause.addEventListener('click', togglePlayPause);
+
+      // Step frame: approximately 1 / 30 = 0.0333s
+      function stepFrame(forward = true) {
+        video.pause();
+        const frameTime = 1 / 30;
+        video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + (forward ? frameTime : -frameTime)));
+      }
+
+      btnStepBack.addEventListener('click', () => stepFrame(false));
+      btnStepForward.addEventListener('click', () => stepFrame(true));
+
+      // Time & Progress Updates
+      video.addEventListener('timeupdate', () => {
+        const cur = video.currentTime;
+        const dur = video.duration || 0;
+
+        txtCurrentTime.textContent = formatTime(cur);
+
+        // A-B Loop Range Check
+        if (trimMode && outPoint > inPoint) {
+          if (cur >= outPoint - 0.05) {
+            if (loopMode === 'range' || loopMode === 'all') {
+              video.currentTime = inPoint;
+              if (video.paused) {
+                const p = video.play();
+                if (p !== undefined) p.catch(() => {});
+              }
+            } else {
+              video.pause();
+              video.currentTime = outPoint;
+            }
+          }
+        }
+
+        if (dur > 0 && !isTimelineDragging) {
+          const pct = (cur / dur) * 100;
+          timelineProgress.style.width = pct + '%';
+          playhead.style.left = pct + '%';
+        }
+
+        // Buffered
+        if (video.buffered.length > 0) {
+          const endBuf = video.buffered.end(video.buffered.length - 1);
+          timelineBuffered.style.width = ((endBuf / dur) * 100) + '%';
+        }
+      });
+
+      video.addEventListener('loadedmetadata', () => {
+        const dur = video.duration || 0;
+        txtDuration.textContent = formatTime(dur);
+        chipResolution.textContent = `${video.videoWidth}×${video.videoHeight}`;
+        
+        inPoint = 0;
+        outPoint = dur;
+        updateTrimUI();
+
+        loadingOverlay.style.display = 'none';
+
+        // Auto-play immediately on load
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.then(() => {
+            svgPlay.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          }).catch(err => {
+            console.warn('[VideoPlayer] Autoplay prevented, trying muted:', err);
+            video.muted = true;
+            sliderVolume.value = 0;
+            video.play().then(() => {
+              svgPlay.innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+            }).catch(e => console.warn('[VideoPlayer] Muted autoplay prevented:', e));
+          });
+        }
+      });
+
+      // Timeline Interaction
+      let wasPlayingBeforeDrag = false;
+
+      function seekToMouseEvent(e) {
+        const rect = timelineTrack.getBoundingClientRect();
+        const dur = video.duration || 0;
+        if (!dur || rect.width <= 0) return 0;
+
+        const pos = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        const pct = (pos / rect.width) * 100;
+        const targetTime = (pos / rect.width) * dur;
+
+        // Мгновенно двигаем визуальные элементы ползунка и прогресса
+        timelineProgress.style.width = pct + '%';
+        playhead.style.left = pct + '%';
+        txtCurrentTime.textContent = formatTime(targetTime);
+
+        // Устанавливаем текущее время видео
+        video.currentTime = targetTime;
+        return targetTime;
+      }
+
+      function getTimeFromMouseEvent(e) {
+        const rect = timelineTrack.getBoundingClientRect();
+        const pos = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        return (pos / rect.width) * (video.duration || 0);
+      }
+
+      timelineContainer.addEventListener('mousedown', (e) => {
+        if (e.target === handleIn || e.target === handleOut) return;
+        isTimelineDragging = true;
+        playhead.classList.add('dragging');
+        wasPlayingBeforeDrag = !video.paused;
+        if (wasPlayingBeforeDrag) {
+          video.pause();
+        }
+        seekToMouseEvent(e);
+      });
+
+      timelineContainer.addEventListener('mousemove', (e) => {
+        const rect = timelineTrack.getBoundingClientRect();
+        const pos = Math.max(0, Math.min(e.clientX - rect.left, rect.width));
+        const pct = (pos / rect.width) * 100;
+        const t = (pos / rect.width) * (video.duration || 0);
+
+        timelineTooltip.style.display = 'block';
+        timelineTooltip.style.left = pct + '%';
+        timelineTooltip.textContent = formatTime(t);
+      });
+
+      timelineContainer.addEventListener('mouseleave', () => {
+        if (!isTimelineDragging) timelineTooltip.style.display = 'none';
+      });
+
+      // Trim Mode & In/Out Handles
+      function setTrimMode(active) {
+        trimMode = active;
+        btnToggleTrim.classList.toggle('btn-trim-active', trimMode);
+        trimRegion.style.display = trimMode ? 'block' : 'none';
+        handleIn.style.display = trimMode ? 'flex' : 'none';
+        handleOut.style.display = trimMode ? 'flex' : 'none';
+        chipTrim.style.display = trimMode ? 'inline-flex' : 'none';
+        btnExportDialog.style.display = trimMode ? 'inline-flex' : 'none';
+
+        if (trimMode) {
+          loopMode = 'range';
+          btnLoop.classList.add('trim-active');
+        } else {
+          loopMode = 'none';
+          btnLoop.classList.remove('trim-active');
+        }
+        updateTrimUI();
+      }
+
+      btnToggleTrim.addEventListener('click', () => {
+        setTrimMode(!trimMode);
+      });
+
+      function updateTrimUI() {
+        const dur = video.duration || 1;
+        const inPct = (inPoint / dur) * 100;
+        const outPct = (outPoint / dur) * 100;
+
+        handleIn.style.left = inPct + '%';
+        handleOut.style.left = outPct + '%';
+
+        trimRegion.style.left = inPct + '%';
+        trimRegion.style.width = Math.max(0, outPct - inPct) + '%';
+
+        const diff = Math.max(0, outPoint - inPoint);
+        chipTrim.textContent = `✂️ ${formatTime(inPoint)} - ${formatTime(outPoint)} (${diff.toFixed(2)}с)`;
+      }
+
+      btnSetIn.addEventListener('click', () => {
+        if (!trimMode) setTrimMode(true);
+        inPoint = Math.min(video.currentTime, outPoint - 0.1);
+        if (inPoint < 0) inPoint = 0;
+        updateTrimUI();
+        showToast(`Точка входа [I]: ${formatTime(inPoint)}`);
+      });
+
+      btnSetOut.addEventListener('click', () => {
+        if (!trimMode) setTrimMode(true);
+        outPoint = Math.max(video.currentTime, inPoint + 0.1);
+        if (outPoint > video.duration) outPoint = video.duration;
+        updateTrimUI();
+        showToast(`Точка выхода [O]: ${formatTime(outPoint)}`);
+      });
+
+      // Dragging In/Out Handles
+      handleIn.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isDraggingInHandle = true;
+      });
+
+      handleOut.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        isDraggingOutHandle = true;
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (isTimelineDragging) {
+          seekToMouseEvent(e);
+          return;
+        }
+
+        if (isDraggingInHandle) {
+          const t = getTimeFromMouseEvent(e);
+          inPoint = Math.max(0, Math.min(t, outPoint - 0.1));
+          video.currentTime = inPoint;
+          updateTrimUI();
+          return;
+        }
+
+        if (isDraggingOutHandle) {
+          const t = getTimeFromMouseEvent(e);
+          outPoint = Math.max(inPoint + 0.1, Math.min(t, video.duration));
+          video.currentTime = outPoint;
+          updateTrimUI();
+          return;
+        }
+      });
+
+      window.addEventListener('mouseup', (e) => {
+        if (isTimelineDragging) {
+          isTimelineDragging = false;
+          playhead.classList.remove('dragging');
+          timelineTooltip.style.display = 'none';
+          seekToMouseEvent(e);
+          if (wasPlayingBeforeDrag) {
+            video.play();
+          }
+        }
+        isDraggingInHandle = false;
+        isDraggingOutHandle = false;
+      });
+
+      // Native Loop & Ended Handlers
+      video.addEventListener('ended', () => {
+        if (loopMode === 'all' || loopMode === 'range') {
+          video.currentTime = trimMode ? inPoint : 0;
+          const p = video.play();
+          if (p !== undefined) p.catch(() => {});
+        } else {
+          svgPlay.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"/>';
+        }
+      });
+
+      // Loop Mode Toggle
+      btnLoop.addEventListener('click', () => {
+        if (loopMode === 'none') {
+          loopMode = trimMode ? 'range' : 'all';
+          video.loop = !trimMode;
+          btnLoop.classList.add(trimMode ? 'trim-active' : 'active');
+          showToast(trimMode ? '🔁 Зацикливание фрагмента [In - Out] вкл' : '🔁 Повтор всего видео вкл');
+        } else if (loopMode === 'all' && trimMode) {
+          loopMode = 'range';
+          video.loop = false;
+          btnLoop.classList.remove('active');
+          btnLoop.classList.add('trim-active');
+          showToast('🔁 Зацикливание фрагмента [In - Out] вкл');
+        } else {
+          loopMode = 'none';
+          video.loop = false;
+          btnLoop.classList.remove('active', 'trim-active');
+          showToast('🔁 Зацикливание выкл');
+        }
+      });
+
+      // Speed Control
+      selSpeed.addEventListener('change', () => {
+        video.playbackRate = parseFloat(selSpeed.value);
+        showToast(`Скорость: ${selSpeed.value}x`);
+      });
+
+      // Volume & Boost (Web Audio API)
+      function initAudio() {
+        if (audioCtx) return;
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          sourceNode = audioCtx.createMediaElementSource(video);
+          gainNode = audioCtx.createGain();
+          sourceNode.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+        } catch (e) {
+          console.warn('[VideoPlayer] Web Audio init error:', e);
+        }
+      }
+
+      sliderVolume.addEventListener('input', () => {
+        video.volume = parseFloat(sliderVolume.value);
+        if (video.volume === 0) {
+          video.muted = true;
+          svgVol.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+        } else {
+          video.muted = false;
+          svgVol.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+        }
+      });
+
+      btnMute.addEventListener('click', () => {
+        video.muted = !video.muted;
+        if (video.muted) {
+          svgVol.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/>';
+        } else {
+          svgVol.innerHTML = '<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>';
+        }
+      });
+
+      btnBoostVolume.addEventListener('click', () => {
+        initAudio();
+        isBoosted = !isBoosted;
+        if (gainNode) {
+          gainNode.gain.value = isBoosted ? 2.0 : 1.0;
+        }
+        btnBoostVolume.textContent = isBoosted ? '⚡ 200%' : '⚡ 100%';
+        btnBoostVolume.classList.toggle('active', isBoosted);
+        showToast(isBoosted ? '⚡ Громкость усилена до 200%!' : 'Громкость: 100%');
+      });
+
+      // Rotation
+      btnRotate.addEventListener('click', () => {
+        rotation = (rotation + 90) % 360;
+        updateTransform();
+      });
+
+      if (btnResetZoom) btnResetZoom.addEventListener('click', resetZoom);
+      if (btnZoomIn) {
+        btnZoomIn.addEventListener('click', () => {
+          zoomLevel = Math.min(5.0, zoomLevel * 1.25);
+          updateTransform();
+        });
+      }
+      if (btnZoomOut) {
+        btnZoomOut.addEventListener('click', () => {
+          zoomLevel = Math.max(1.0, zoomLevel / 1.25);
+          if (zoomLevel <= 1.05) {
+            panX = 0;
+            panY = 0;
+            zoomLevel = 1.0;
+          }
+          updateTransform();
+        });
+      }
+
+      // Snapshot to Source Folder & Clipboard (Ctrl+C / 📷)
+      async function captureSnapshot() {
+        if (!video.videoWidth) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const curSec = video.currentTime;
+          const timeStr = formatTime(curSec).replace(/:/g, '-').replace('.', '_');
+          const snapName = `${fileNameBase}_snapshot_${timeStr}.png`;
+
+          // 1. Копируем в буфер обмена для мгновенной вставки
+          let clipboardOk = false;
+          try {
+            await navigator.clipboard.write([
+              new ClipboardItem({ 'image/png': blob })
+            ]);
+            clipboardOk = true;
+          } catch (e) {}
+
+          // 2. Сохраняем в файл через системный диалог проводника "Сохранить как..."
+          const saved = await saveExportedFile(blob, snapName, 'Снапшот кадра');
+          if (!saved && clipboardOk) {
+            showToast('📷 Кадр скопирован в буфер обмена!');
+          }
+        }, 'image/png');
+      }
+
+      btnSnapshot.addEventListener('click', captureSnapshot);
+
+      // Fullscreen (Host IPC + Standard Fullscreen + Immersive In-Window Mode)
+      let isFullscreen = false;
+
+      function updateFullscreenUI() {
+        if (isFullscreen) {
+          document.body.classList.add('in-window-fullscreen');
+          btnFullscreen.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 14h6v6m10-10h-6V4m0 6l7-7M10 14l-7 7"/>
+            </svg>
+          `;
+          btnFullscreen.title = 'Выйти из полноэкранного режима (F / Esc)';
+        } else {
+          document.body.classList.remove('in-window-fullscreen');
+          btnFullscreen.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          `;
+          btnFullscreen.title = 'Полноэкранный режим (F)';
+        }
+      }
+
+      async function toggleFullscreen() {
+        sendToHost('PEEKIT_TOGGLE_FULLSCREEN');
+        sendToHost('PEEKIT_ACTION', { action: 'toggle_fullscreen' });
+        sendToHost('PEEKIT_ACTION', { action: 'maximize' });
+
+        const isCurrentlyFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+        if (!isCurrentlyFs) {
+          let fsSuccess = false;
+          // 1. Пробуем нативный video.requestFullscreen
+          if (video.requestFullscreen) {
+            try {
+              await video.requestFullscreen();
+              fsSuccess = true;
+            } catch (err) {}
+          } else if (video.webkitRequestFullscreen) {
+            try {
+              video.webkitRequestFullscreen();
+              fsSuccess = true;
+            } catch (err) {}
+          }
+
+          // 2. Пробуем document requestFullscreen
+          if (!fsSuccess && document.documentElement.requestFullscreen) {
+            try {
+              await document.documentElement.requestFullscreen();
+              fsSuccess = true;
+            } catch (err) {}
+          }
+
+          if (fsSuccess) {
+            isFullscreen = true;
+          } else {
+            // Если движок заблокировал fullscreen в iframe
+            isFullscreen = !isFullscreen;
+            if (isFullscreen) {
+              showToast('💡 Для полного экрана разверните окно PeekIt (кнопка 🗖)');
+            }
+          }
+        } else {
+          try {
+            if (document.exitFullscreen) {
+              await document.exitFullscreen();
+            } else if (document.webkitExitFullscreen) {
+              await document.webkitExitFullscreen();
+            }
+          } catch (err) {}
+          isFullscreen = false;
+        }
+
+        updateFullscreenUI();
+      }
+
+      const onFullscreenChanged = () => {
+        isFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        updateFullscreenUI();
+      };
+      document.addEventListener('fullscreenchange', onFullscreenChanged);
+      document.addEventListener('webkitfullscreenchange', onFullscreenChanged);
+      video.addEventListener('fullscreenchange', onFullscreenChanged);
+      video.addEventListener('webkitfullscreenchange', onFullscreenChanged);
+
+      btnFullscreen.addEventListener('click', toggleFullscreen);
+
+      // Export Dialog
+      btnExportDialog.addEventListener('click', openExportDialog);
+
+      function openExportDialog() {
+        video.pause();
+        if (!trimMode) {
+          setTrimMode(true);
+        }
+        lblExportStart.textContent = formatTime(inPoint);
+        lblExportEnd.textContent = formatTime(outPoint);
+        const dur = Math.max(0, outPoint - inPoint);
+        lblExportDur.textContent = dur.toFixed(2) + ' сек';
+
+        if (lblExportFolder) {
+          if (originalFileDir) {
+            lblExportFolder.textContent = originalFileDir;
+            lblExportFolder.title = originalFileDir;
+          } else {
+            lblExportFolder.textContent = 'Рядом с исходным файлом';
+            lblExportFolder.title = 'Рядом с исходным файлом';
+          }
+        }
+
+        exportBtnGrid.style.display = 'grid';
+        exportProgressWrap.style.display = 'none';
+        exportModal.style.display = 'flex';
+      }
+
+      btnCloseModal.addEventListener('click', () => {
+        exportModal.style.display = 'none';
+      });
+
+      // Video Trimming via MediaRecorder
+      btnExportVideo.addEventListener('click', async () => {
+        exportBtnGrid.style.display = 'none';
+        exportProgressWrap.style.display = 'flex';
+        progressFill.style.width = '0%';
+        progressStatus.textContent = 'Подготовка видеопотока...';
+
+        try {
+          const stream = video.captureStream ? video.captureStream() : video.mozCaptureStream();
+          let mime = 'video/webm;codecs=vp9,opus';
+          if (!MediaRecorder.isTypeSupported(mime)) {
+            mime = 'video/webm';
+          }
+
+          const recorder = new MediaRecorder(stream, { mimeType: mime });
+          const chunks = [];
+
+          recorder.ondataavailable = (e) => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
+          recorder.onstop = () => {
+            const blob = new Blob(chunks, { type: mime });
+            const clipName = `${fileNameBase}_clip_${Math.round(inPoint)}s-${Math.round(outPoint)}s.webm`;
+            saveExportedFile(blob, clipName, 'Видеоклип');
+            exportModal.style.display = 'none';
+          };
+
+          video.currentTime = inPoint;
+          await new Promise(r => setTimeout(r, 150));
+
+          recorder.start(100);
+          video.play();
+
+          const totalTrimDur = outPoint - inPoint;
+          const pollInterval = setInterval(() => {
+            const curRecorded = video.currentTime - inPoint;
+            const pct = Math.min(100, Math.max(0, (curRecorded / totalTrimDur) * 100));
+            progressFill.style.width = pct + '%';
+            progressStatus.textContent = `Запись отрезка: ${Math.max(0, curRecorded).toFixed(1)} / ${totalTrimDur.toFixed(1)} сек...`;
+
+            if (video.currentTime >= outPoint || video.ended) {
+              clearInterval(pollInterval);
+              video.pause();
+              recorder.stop();
+            }
+          }, 50);
+
+        } catch (err) {
+          console.error('[VideoPlayer] Export error:', err);
+          progressStatus.textContent = 'Ошибка экспорта: ' + err.message;
+        }
+      });
+
+      // Compact GIF Encoder (Canvas frame sampler)
+      btnExportGif.addEventListener('click', async () => {
+        exportBtnGrid.style.display = 'none';
+        exportProgressWrap.style.display = 'flex';
+        progressFill.style.width = '0%';
+        progressStatus.textContent = 'Захват кадров для GIF...';
+
+        try {
+          const targetFps = 10;
+          const interval = 1 / targetFps;
+          const totalDur = outPoint - inPoint;
+          const frameCount = Math.min(120, Math.floor(totalDur * targetFps)); // Cap at 120 frames for performance
+
+          // Scaled down dimensions for GIF (max width 480)
+          const scale = Math.min(1, 480 / video.videoWidth);
+          const gw = Math.round(video.videoWidth * scale);
+          const gh = Math.round(video.videoHeight * scale);
+
+          const canvas = document.createElement('canvas');
+          canvas.width = gw;
+          canvas.height = gh;
+          const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+          video.pause();
+          const frames = [];
+
+          for (let i = 0; i < frameCount; i++) {
+            const t = inPoint + (i * interval);
+            video.currentTime = t;
+            await new Promise(r => {
+              const onSeeked = () => {
+                video.removeEventListener('seeked', onSeeked);
+                r();
+              };
+              video.addEventListener('seeked', onSeeked);
+            });
+
+            ctx.drawImage(video, 0, 0, gw, gh);
+            frames.push(ctx.getImageData(0, 0, gw, gh));
+
+            const pct = Math.round(((i + 1) / frameCount) * 60);
+            progressFill.style.width = pct + '%';
+            progressStatus.textContent = `Захват кадров: ${i + 1} из ${frameCount}...`;
+          }
+
+          progressStatus.textContent = 'Кодирование GIF анимации...';
+          await new Promise(r => setTimeout(r, 20));
+
+          // Minimalist Animated GIF Encoder in Pure JS
+          const gifBlob = encodeGifFrames(frames, gw, gh, Math.round(interval * 100));
+          progressFill.style.width = '100%';
+
+          const gifName = `${fileNameBase}_animation.gif`;
+          saveExportedFile(gifBlob, gifName, 'GIF-анимация');
+          exportModal.style.display = 'none';
+
+          exportModal.style.display = 'none';
+          showToast('🎞️ GIF анимация успешно сохранена!');
+        } catch (err) {
+          console.error('[VideoPlayer] GIF export error:', err);
+          progressStatus.textContent = 'Ошибка создания GIF: ' + err.message;
+        }
+      });
+
+      // Lightweight LZW GIF89a Encoder
+      function encodeGifFrames(frames, width, height, delayCentisec) {
+        const bytes = [];
+        const writeStr = (str) => {
+          for (let i = 0; i < str.length; i++) bytes.push(str.charCodeAt(i));
+        };
+        const writeWord = (w) => {
+          bytes.push(w & 0xFF, (w >> 8) & 0xFF);
+        };
+
+        // Header: GIF89a
+        writeStr('GIF89a');
+        writeWord(width);
+        writeWord(height);
+        bytes.push(0x70, 0, 0); // GCT Flag: none, 7 bits/pixel
+
+        // Application Extension: Netscape Loop 2.0
+        bytes.push(0x21, 0xFF, 0x0B);
+        writeStr('NETSCAPE2.0');
+        bytes.push(0x03, 0x01, 0x00, 0x00, 0x00);
+
+        for (let fi = 0; fi < frames.length; fi++) {
+          const imgData = frames[fi];
+          const { indexedPixels, palette } = quantizeRGB(imgData.data, width * height);
+
+          // Graphic Control Extension
+          bytes.push(0x21, 0xF9, 0x04, 0x04);
+          writeWord(delayCentisec); // Frame delay
+          bytes.push(0x00, 0x00);
+
+          // Image Descriptor
+          bytes.push(0x2C);
+          writeWord(0); writeWord(0); // Left, Top
+          writeWord(width); writeWord(height);
+          bytes.push(0x87); // Local Color Table flag (256 colors)
+
+          // Local Color Table (256 * 3 bytes)
+          for (let c = 0; c < 256; c++) {
+            const col = palette[c] || [0, 0, 0];
+            bytes.push(col[0], col[1], col[2]);
+          }
+
+          // LZW Compressed Raster Data
+          lzwEncode(bytes, 8, indexedPixels);
+        }
+
+        // GIF Trailer
+        bytes.push(0x3B);
+        return new Blob([new Uint8Array(bytes)], { type: 'image/gif' });
+      }
+
+      // 256-color Fast Quantizer
+      function quantizeRGB(data, pixelCount) {
+        const palette = [];
+        // Standard uniform 6x7x6 color cube + 4 grays = 256 colors
+        for (let r = 0; r < 6; r++) {
+          for (let g = 0; g < 7; g++) {
+            for (let b = 0; b < 6; b++) {
+              palette.push([
+                Math.round((r / 5) * 255),
+                Math.round((g / 6) * 255),
+                Math.round((b / 5) * 255)
+              ]);
+            }
+          }
+        }
+        while (palette.length < 256) {
+          const v = Math.round((palette.length / 255) * 255);
+          palette.push([v, v, v]);
+        }
+
+        const indexed = new Uint8Array(pixelCount);
+        for (let i = 0, p = 0; i < pixelCount; i++, p += 4) {
+          const r = Math.min(5, Math.round((data[p] / 255) * 5));
+          const g = Math.min(6, Math.round((data[p + 1] / 255) * 6));
+          const b = Math.min(5, Math.round((data[p + 2] / 255) * 5));
+          indexed[i] = r * 42 + g * 6 + b;
+        }
+
+        return { indexedPixels: indexed, palette };
+      }
+
+      // GIF LZW Encoder
+      function lzwEncode(bytes, minCodeSize, pixels) {
+        bytes.push(minCodeSize);
+        const clearCode = 1 << minCodeSize;
+        const eoiCode = clearCode + 1;
+        let codeSize = minCodeSize + 1;
+        let nextCode = eoiCode + 1;
+
+        let accum = 0;
+        let accumBits = 0;
+        const subBlock = [];
+
+        function writeCode(c) {
+          accum |= (c << accumBits);
+          accumBits += codeSize;
+          while (accumBits >= 8) {
+            subBlock.push(accum & 0xFF);
+            accum >>= 8;
+            accumBits -= 8;
+            if (subBlock.length === 254) {
+              bytes.push(subBlock.length, ...subBlock);
+              subBlock.length = 0;
+            }
+          }
+        }
+
+        writeCode(clearCode);
+        const table = new Map();
+        let prefix = pixels[0];
+
+        for (let i = 1; i < pixels.length; i++) {
+          const k = pixels[i];
+          const key = (prefix << 8) | k;
+          if (table.has(key)) {
+            prefix = table.get(key);
+          } else {
+            writeCode(prefix);
+            if (nextCode < 4096) {
+              table.set(key, nextCode++);
+              if (nextCode > (1 << codeSize) && codeSize < 12) {
+                codeSize++;
+              }
+            } else {
+              writeCode(clearCode);
+              table.clear();
+              codeSize = minCodeSize + 1;
+              nextCode = eoiCode + 1;
+            }
+            prefix = k;
+          }
+        }
+
+        writeCode(prefix);
+        writeCode(eoiCode);
+
+        if (accumBits > 0) {
+          subBlock.push(accum & 0xFF);
+        }
+        if (subBlock.length > 0) {
+          bytes.push(subBlock.length, ...subBlock);
+        }
+        bytes.push(0x00); // Block terminator
+      }
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        if (exportModal.style.display.includes('flex')) {
+          if (e.key === 'Escape') exportModal.style.display = 'none';
+          return;
+        }
+
+        switch (e.code) {
+          case 'Space':
+            e.preventDefault();
+            togglePlayPause();
+            break;
+          case 'ArrowLeft':
+            e.preventDefault();
+            if (e.shiftKey) stepFrame(false);
+            else video.currentTime = Math.max(0, video.currentTime - 5);
+            break;
+          case 'ArrowRight':
+            e.preventDefault();
+            if (e.shiftKey) stepFrame(true);
+            else video.currentTime = Math.min(video.duration, video.currentTime + 5);
+            break;
+          case 'Comma': // <
+            stepFrame(false);
+            break;
+          case 'Period': // >
+            stepFrame(true);
+            break;
+          case 'KeyI':
+            btnSetIn.click();
+            break;
+          case 'KeyO':
+            btnSetOut.click();
+            break;
+          case 'KeyC':
+            captureSnapshot();
+            break;
+          case 'KeyR':
+            btnRotate.click();
+            break;
+          case 'KeyM':
+            btnMute.click();
+            break;
+          case 'KeyF':
+            toggleFullscreen();
+            break;
+          case 'Escape':
+            if (isFullscreen) {
+              toggleFullscreen();
+            }
+            break;
+          case 'Equal':
+          case 'NumpadAdd':
+            if (btnZoomIn) btnZoomIn.click();
+            break;
+          case 'Minus':
+          case 'NumpadSubtract':
+            if (btnZoomOut) btnZoomOut.click();
+            break;
+          case 'Digit0':
+          case 'Numpad0':
+            resetZoom();
+            break;
+          case 'BracketLeft': // [
+            selSpeed.selectedIndex = Math.max(0, selSpeed.selectedIndex - 1);
+            selSpeed.dispatchEvent(new Event('change'));
+            break;
+          case 'BracketRight': // ]
+            selSpeed.selectedIndex = Math.min(selSpeed.options.length - 1, selSpeed.selectedIndex + 1);
+            selSpeed.dispatchEvent(new Event('change'));
+            break;
+        }
+      });
+
+      // IPC Listeners
+      window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        switch (msg.type) {
+          case 'PEEKIT_INIT':
+            if (readyInterval) {
+              clearInterval(readyInterval);
+              readyInterval = null;
+            }
+            handleInit(msg.payload);
+            break;
+
+          case 'PEEKIT_DATA_RESPONSE':
+            handleDataResponse(msg.payload);
+            break;
+        }
+      });
+
+      function handleInit(payload) {
+        if (!payload) return;
+        if (payload.filePath) {
+          originalFilePath = payload.filePath;
+          const sep = Math.max(originalFilePath.lastIndexOf('\\'), originalFilePath.lastIndexOf('/'));
+          if (sep !== -1) {
+            originalFileDir = originalFilePath.substring(0, sep);
+          }
+        }
+        if (payload.fileName) {
+          videoTitle.textContent = payload.fileName;
+          fileNameBase = payload.fileName.replace(/\.[^/.]+$/, '');
+        }
+        const ext = (payload.extension || '').replace('.', '').toUpperCase();
+        if (ext) chipFormat.textContent = ext;
+
+        sendToHost('PEEKIT_REQUEST_DATA');
+      }
+
+      function handleDataResponse(payload) {
+        const rawData = payload?.data !== undefined ? payload.data : payload;
+        const error = payload?.error;
+
+        if (error || !rawData) {
+          loadingOverlay.innerHTML = '<span style="color:#ef4444;padding:20px;">Ошибка загрузки видео: ' + (error || 'Нет данных') + '</span>';
+          return;
+        }
+
+        let blob = null;
+        if (rawData instanceof Blob) {
+          blob = rawData;
+        } else if (rawData instanceof ArrayBuffer) {
+          blob = new Blob([rawData], { type: 'video/mp4' });
+        } else if (ArrayBuffer.isView(rawData)) {
+          blob = new Blob([rawData.buffer], { type: 'video/mp4' });
+        } else if (Array.isArray(rawData)) {
+          blob = new Blob([new Uint8Array(rawData)], { type: 'video/mp4' });
+        } else if (typeof rawData === 'string') {
+          // If base64 data url or base64 string
+          if (rawData.startsWith('data:')) {
+            video.src = rawData;
+            return;
+          } else {
+            const binary = atob(rawData);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            blob = new Blob([bytes], { type: 'video/mp4' });
+          }
+        }
+
+        if (blob) {
+          rawBlobUrl = URL.createObjectURL(blob);
+          video.src = rawBlobUrl;
+        }
+      }
+
+    })();
+  </script>
+</body>
+</html>

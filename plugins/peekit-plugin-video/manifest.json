@@ -1,0 +1,30 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kobaltgit/peekit-plugins/main/plugin-schema.json",
+  "id": "com.peekit.video-player",
+  "name": "Pro Video Player & Trimmer",
+  "version": "1.0.2",
+  "author": "Kobalt",
+  "description": "Professional video player with frame-by-frame stepping, lossless trimming, GIF export, frame snapshotting, pan & zoom, and 200% volume boost",
+  "extensions": [
+    ".mp4",
+    ".webm",
+    ".mov",
+    ".m4v",
+    ".mkv",
+    ".ogv"
+  ],
+  "entry": "index.html",
+  "min_peekit_version": "1.0.0",
+  "permissions": [
+    "read_file",
+    "save_file",
+    "clipboard_write"
+  ],
+  "icon": "icon.svg",
+  "category": "Media",
+  "homepage": "https://github.com/kobaltgit/peekit-plugins",
+  "default_dimensions": {
+    "width": 960,
+    "height": 640
+  }
+}

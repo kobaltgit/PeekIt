@@ -120,7 +120,9 @@
 
   function handleCloseSettings() {
     isSettingsOpen = false;
-    if (!currentFile) {
+    if (currentFile) {
+      activePlugin = pluginRegistry.findPluginForFile(currentFile.extension, currentFile.category === 'folder');
+    } else {
       closeWindow();
     }
   }
@@ -393,6 +395,13 @@
         <h2>{t('app_title', settings.language)}</h2>
         <p>{t('select_file_hint', settings.language)}</p>
       </div>
+    {:else if activePlugin}
+      <PluginHost
+        plugin={activePlugin}
+        file={currentFile}
+        theme={settings.theme}
+        language={settings.language}
+      />
     {:else if currentFile.category === 'video' || currentFile.category === 'audio'}
       <MediaPreview
         file={currentFile}
@@ -406,13 +415,6 @@
       <PdfPreview file={currentFile} lang={settings.language} />
     {:else if currentFile.category === 'archive'}
       <ArchivePreview file={currentFile} lang={settings.language} />
-    {:else if activePlugin}
-      <PluginHost
-        plugin={activePlugin}
-        file={currentFile}
-        theme={settings.theme}
-        language={settings.language}
-      />
     {:else if currentFile.category === 'code' || currentFile.category === 'text'}
       <CodePreview file={currentFile} content={textContent} lang={settings.language} />
     {:else if currentFile.category === 'markdown'}
