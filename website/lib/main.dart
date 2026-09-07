@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'theme.dart';
-import 'widgets/navbar.dart';
 import 'widgets/hero_section.dart';
 import 'widgets/features_grid.dart';
 import 'widgets/supported_formats.dart';
@@ -9,7 +8,7 @@ import 'widgets/interactive_demo.dart';
 import 'widgets/comparison_table.dart';
 import 'widgets/faq_section.dart';
 import 'widgets/download_cta.dart';
-import 'widgets/footer.dart';
+import 'package:kobalt_ui/kobalt_ui.dart';
 
 void main() {
   runApp(const PeekitApp());
@@ -33,6 +32,7 @@ class _PeekitAppState extends State<PeekitApp> {
   final GlobalKey _demoKey = GlobalKey();
   final GlobalKey _compareKey = GlobalKey();
   final GlobalKey _faqKey = GlobalKey();
+  final GlobalKey _downloadKey = GlobalKey();
 
   void _scrollToSection(String sectionId) {
     GlobalKey? targetKey;
@@ -54,6 +54,9 @@ class _PeekitAppState extends State<PeekitApp> {
         break;
       case 'faq':
         targetKey = _faqKey;
+        break;
+      case 'download':
+        targetKey = _downloadKey;
         break;
       case 'hero':
         _scrollController.animateTo(
@@ -82,12 +85,50 @@ class _PeekitAppState extends State<PeekitApp> {
       home: Scaffold(
         body: Column(
           children: [
-            Navbar(
-              lang: _lang,
-              isDark: _isDark,
-              onToggleTheme: () => setState(() => _isDark = !_isDark),
-              onToggleLang: (newLang) => setState(() => _lang = newLang),
-              onNavigate: _scrollToSection,
+            KobaltNavBar(
+              project: KobaltProjectId.peekIt,
+              version: 'v1.0.0',
+              isRussian: _lang == 'ru',
+              onLanguageToggle: () => setState(() => _lang = _lang == 'ru' ? 'en' : 'ru'),
+              accentColor: AppTheme.primary,
+              navLinks: [
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'Возможности' : 'Features',
+                  onTap: () => _scrollToSection('features'),
+                ),
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'Форматы' : 'Formats',
+                  onTap: () => _scrollToSection('formats'),
+                ),
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'Плагины' : 'Plugins',
+                  onTap: () => _scrollToSection('plugins'),
+                ),
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'Демо' : 'Demo',
+                  onTap: () => _scrollToSection('demo'),
+                ),
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'Сравнение' : 'Compare',
+                  onTap: () => _scrollToSection('compare'),
+                ),
+                KobaltNavLink(
+                  label: _lang == 'ru' ? 'FAQ' : 'FAQ',
+                  onTap: () => _scrollToSection('faq'),
+                ),
+              ],
+              onDownloadTap: () => _scrollToSection('download'),
+              extraActions: [
+                IconButton(
+                  icon: Icon(
+                    _isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
+                    size: 18,
+                    color: _isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
+                  ),
+                  onPressed: () => setState(() => _isDark = !_isDark),
+                  tooltip: _lang == 'ru' ? 'Переключить тему' : 'Toggle theme',
+                ),
+              ],
             ),
             Expanded(
               child: SingleChildScrollView(
@@ -105,8 +146,20 @@ class _PeekitAppState extends State<PeekitApp> {
                     Container(key: _demoKey, child: InteractiveDemo(lang: _lang, isDark: _isDark)),
                     Container(key: _compareKey, child: ComparisonTable(lang: _lang, isDark: _isDark)),
                     Container(key: _faqKey, child: FaqSection(lang: _lang, isDark: _isDark)),
-                    DownloadCta(lang: _lang, isDark: _isDark),
-                    Footer(lang: _lang, isDark: _isDark),
+                    Container(key: _downloadKey, child: DownloadCta(lang: _lang, isDark: _isDark)),
+                    KobaltFooter(
+                      project: KobaltProjectId.peekIt,
+                      version: 'v1.0.0',
+                      isRussian: _lang == 'ru',
+                      accentColor: AppTheme.primary,
+                      onBackToTop: () {
+                        _scrollController.animateTo(
+                          0,
+                          duration: const Duration(milliseconds: 600),
+                          curve: Curves.easeInOutCubic,
+                        );
+                      },
+                    ),
                   ],
                 ),
               ),
