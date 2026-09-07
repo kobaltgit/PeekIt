@@ -3,8 +3,8 @@
 [![Platform: Windows](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-0078D6.svg?logo=windows)](https://microsoft.com)
 [![Rust](https://img.shields.io/badge/Rust-2021%20Edition-DEA584.svg?logo=rust)](https://www.rust-lang.org)
 [![Tauri](https://img.shields.io/badge/Tauri-v2.0-FFC131.svg?logo=tauri)](https://v2.tauri.app)
-[![Svelte](https://img.shields.io/badge/Svelte-v5%20(Runes)-FF3E00.svg?logo=svelte)](https://svelte.dev)
-[![Flutter Web](https://img.shields.io/badge/Website-Flutter%20Web-02569B.svg?logo=flutter)](https://kobaltgit.github.io/peekit/)
+[![Svelte](<https://img.shields.io/badge/Svelte-v5%20(Runes)-FF3E00.svg?logo=svelte>)](https://svelte.dev)
+[![Flutter Web](https://img.shields.io/badge/Website-Flutter%20Web-02569B.svg?logo=flutter)](https://kobaltgit.github.io/PeekIt/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 [**Русский**](#-о-проекте-peekit) | [**English**](#-about-peekit)
@@ -19,15 +19,15 @@
 
 ### ⚡ Ключевые показатели
 
-| Параметр | Peekit v1.2.0 | QuickLook | PowerToys Peek |
-| :--- | :--- | :--- | :--- |
-| **Технологический стек** | **Rust + Tauri v2 + Svelte 5** | C# / .NET / WPF | C++ / WinUI 3 (в составе PowerToys) |
-| **Потребление ОЗУ в фоне** | **10–15 МБ** | 30–50 МБ | 100–200 МБ |
-| **ОЗУ при активном просмотре** | **~25–80 МБ** (в зависимости от плагина) | ~60–80 МБ (текст) / 150–300 МБ (PDF, медиа) | 120–250 МБ |
-| **Холодный отклик по Space** | **~ 50 мс** | ~50–80 мс | ~200–350 мс |
-| **Размер дистрибутива** | **~3.4 МБ** (установщик) / 5.1 МБ (portable) | ~90 МБ | >200МБ (весь пакет PowerToys) |
-| **Архитектура плагинов** | **Изолированные Web-песочницы (iframe + postMessage)** | .NET скомпилированные DLL | Отсутствует |
-| **Права администратора** | **Не требуются (чистый HKCU)** | Не требуются | Требуются частично |
+| Параметр                       | Peekit v1.2.0                                          | QuickLook                                   | PowerToys Peek                      |
+| :----------------------------- | :----------------------------------------------------- | :------------------------------------------ | :---------------------------------- |
+| **Технологический стек**       | **Rust + Tauri v2 + Svelte 5**                         | C# / .NET / WPF                             | C++ / WinUI 3 (в составе PowerToys) |
+| **Потребление ОЗУ в фоне**     | **10–15 МБ**                                           | 30–50 МБ                                    | 100–200 МБ                          |
+| **ОЗУ при активном просмотре** | **~25–80 МБ** (в зависимости от плагина)               | ~60–80 МБ (текст) / 150–300 МБ (PDF, медиа) | 120–250 МБ                          |
+| **Холодный отклик по Space**   | **~ 50 мс**                                            | ~50–80 мс                                   | ~200–350 мс                         |
+| **Размер дистрибутива**        | **~3.4 МБ** (установщик) / 5.1 МБ (portable)           | ~90 МБ                                      | >200МБ (весь пакет PowerToys)       |
+| **Архитектура плагинов**       | **Изолированные Web-песочницы (iframe + postMessage)** | .NET скомпилированные DLL                   | Отсутствует                         |
+| **Права администратора**       | **Не требуются (чистый HKCU)**                         | Не требуются                                | Требуются частично                  |
 
 ### 🎯 Возможности
 
@@ -61,15 +61,15 @@ It enables instant file previews by pressing **Space** in File Explorer or on th
 
 ### ⚡ Key Benchmarks
 
-| Parameter | Peekit v1.2.0 | QuickLook | PowerToys Peek |
-| :--- | :--- | :--- | :--- |
-| **Technology stack** | **Rust + Tauri v2 + Svelte 5** | C# / .NET / WPF | C++ / WinUI 3 (part of PowerToys) |
-| **Background RAM usage** | **10–15 MB** | 30–50 MB | 100–200 MB |
-| **Active preview RAM** | **~25–80 MB** (depending on plugin) | ~60–80 MB (text) / 150–300 MB (PDF, media) | 120–250 MB |
-| **Cold response on Space** | **~ 50 ms** | ~50–80 ms | ~200–350 ms |
-| **Distribution size** | **~3.4 MB** (installer) / 5.1 MB (portable) | ~90 MB | >200MB (full PowerToys suite) |
-| **Plugin architecture** | **Isolated Web sandboxes (iframe + postMessage)** | .NET compiled DLLs | None |
-| **Administrator rights** | **Not required (clean HKCU)** | Not required | Partially required |
+| Parameter                  | Peekit v1.2.0                                     | QuickLook                                  | PowerToys Peek                    |
+| :------------------------- | :------------------------------------------------ | :----------------------------------------- | :-------------------------------- |
+| **Technology stack**       | **Rust + Tauri v2 + Svelte 5**                    | C# / .NET / WPF                            | C++ / WinUI 3 (part of PowerToys) |
+| **Background RAM usage**   | **10–15 MB**                                      | 30–50 MB                                   | 100–200 MB                        |
+| **Active preview RAM**     | **~25–80 MB** (depending on plugin)               | ~60–80 MB (text) / 150–300 MB (PDF, media) | 120–250 MB                        |
+| **Cold response on Space** | **~ 50 ms**                                       | ~50–80 ms                                  | ~200–350 ms                       |
+| **Distribution size**      | **~3.4 MB** (installer) / 5.1 MB (portable)       | ~90 MB                                     | >200MB (full PowerToys suite)     |
+| **Plugin architecture**    | **Isolated Web sandboxes (iframe + postMessage)** | .NET compiled DLLs                         | None                              |
+| **Administrator rights**   | **Not required (clean HKCU)**                     | Not required                               | Partially required                |
 
 ### 🎯 Core Features
 
