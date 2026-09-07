@@ -28,7 +28,7 @@
   let copyFeedback = false;
 
   $: if (currentFile) {
-    activePlugin = pluginRegistry.findPluginForFile(currentFile.extension);
+    activePlugin = pluginRegistry.findPluginForFile(currentFile.extension, currentFile.category === 'folder');
   } else {
     activePlugin = undefined;
   }
@@ -79,7 +79,7 @@
         textContent = await invokeTauri('read_text_content', { path: filePath }) || '';
       }
       currentFile = info;
-      activePlugin = pluginRegistry.findPluginForFile(info.extension);
+      activePlugin = pluginRegistry.findPluginForFile(info.extension, info.category === 'folder');
     }
   }
 
@@ -223,7 +223,7 @@
     // Load installed plugins
     await pluginRegistry.loadPlugins();
     if (currentFile) {
-      activePlugin = pluginRegistry.findPluginForFile(currentFile.extension);
+      activePlugin = pluginRegistry.findPluginForFile(currentFile.extension, currentFile.category === 'folder');
     }
 
     // Listen for Tauri events

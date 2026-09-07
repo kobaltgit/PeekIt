@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/kobaltgit/peekit-plugins/main/plugin-schema.json",
+  "id": "com.peekit.folder-viewer",
+  "name": "Folder Contents Viewer",
+  "version": "1.0.0",
+  "author": "Kobalt",
+  "description": "Lightning-fast offline directory previewer with live search, column sorting, category insights, and quick file launch",
+  "extensions": [
+    "<folder>"
+  ],
+  "entry": "index.html",
+  "min_peekit_version": "1.0.0",
+  "permissions": [
+    "read_file",
+    "clipboard_write"
+  ],
+  "icon": "icon.svg",
+  "category": "Utilities",
+  "homepage": "https://github.com/kobaltgit/peekit-plugins",
+  "default_dimensions": {
+    "width": 860,
+    "height": 580
+  }
+}

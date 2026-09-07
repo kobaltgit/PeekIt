@@ -8,6 +8,7 @@ export interface PeekitInitPayload {
   extension: string;
   theme: AppTheme;
   language: AppLanguage;
+  extra?: import('$lib/types').FileExtraInfo;
 }
 
 export interface PeekitDataResponsePayload {
@@ -29,7 +30,9 @@ export type PluginToHostMessage =
   | { type: 'PEEKIT_READY' }
   | { type: 'PEEKIT_REQUEST_DATA' }
   | { type: 'PEEKIT_RESIZE'; payload: PeekitResizePayload }
-  | { type: 'PEEKIT_ERROR'; payload: { message: string } };
+  | { type: 'PEEKIT_ERROR'; payload: { message: string } }
+  | { type: 'PEEKIT_OPEN_FILE'; payload: { path: string } }
+  | { type: 'PEEKIT_REVEAL_FILE'; payload: { path: string } };
 
 export const PEEKIT_MSG_SOURCE = 'peekit-host';
 export const PEEKIT_PLUGIN_SOURCE = 'peekit-plugin';

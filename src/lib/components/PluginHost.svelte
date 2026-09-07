@@ -43,6 +43,7 @@
         extension: file.extension,
         theme,
         language,
+        extra: file.extra,
       },
     });
   }
@@ -111,6 +112,18 @@
       case 'PEEKIT_ERROR':
         errorMessage = data.payload?.message || 'Unknown plugin error';
         console.warn(`[PluginHost:${plugin.manifest.id}] Error:`, data.payload?.message);
+        break;
+
+      case 'PEEKIT_OPEN_FILE':
+        if ((data as any).payload?.path) {
+          invoke('open_with_default_app', { path: (data as any).payload.path });
+        }
+        break;
+
+      case 'PEEKIT_REVEAL_FILE':
+        if ((data as any).payload?.path) {
+          invoke('reveal_in_explorer', { path: (data as any).payload.path });
+        }
         break;
     }
   }

@@ -1,9 +1,12 @@
 <script lang="ts">
-  import type { AppSettings, AppLanguage, AppTheme } from '../types';
+  import type { AppSettings, AppLanguage, AppTheme, UpdateCheckResult } from '../types';
   import { t } from '../i18n';
   import PluginsTab from './settings/PluginsTab.svelte';
   import { openUrl } from '@tauri-apps/plugin-opener';
   import { pluginRegistry } from '$lib/stores/plugins.svelte';
+  import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
+  import { onMount, onDestroy } from 'svelte';
 
   export let settings: AppSettings;
   export let isOpen: boolean = false;
@@ -14,6 +17,11 @@
 
   let localSettings: AppSettings = { ...settings };
   let activeTab: 'general' | 'appearance' | 'plugins' | 'about' = initialTab;
+
+  let isCheckingUpdates = false;
+  let updateResult: UpdateCheckResult | null = null;
+  let updateError: string | null = null;
+  let unlistenUpdate: (() => void) | null = null;
 
   let wasOpen = false;
   $: if (isOpen && !wasOpen) {
@@ -26,6 +34,33 @@
 
   $: if (isOpen && activeTab === 'plugins') {
     pluginRegistry.loadPlugins();
+  }
+
+  onMount(async () => {
+    try {
+      unlistenUpdate = await listen<UpdateCheckResult>('update-status', (event) => {
+        updateResult = event.payload;
+      });
+    } catch (e) {
+      console.warn('[Updater] Failed to attach listener', e);
+    }
+  });
+
+  onDestroy(() => {
+    if (unlistenUpdate) unlistenUpdate();
+  });
+
+  async function handleCheckUpdates(force: boolean = true) {
+    if (isCheckingUpdates) return;
+    isCheckingUpdates = true;
+    updateError = null;
+    try {
+      updateResult = await invoke<UpdateCheckResult>('check_for_updates', { force });
+    } catch (e: any) {
+      updateError = String(e || t('update_error', localSettings.language));
+    } finally {
+      isCheckingUpdates = false;
+    }
   }
 
   async function openLink(url: string) {
@@ -79,7 +114,10 @@
           class="tab-link {activeTab === 'about' ? 'active' : ''}"
           on:click={() => (activeTab = 'about')}
         >
-          {t('about_tab', localSettings.language)}
+          <span>{t('about_tab', localSettings.language)}</span>
+          {#if updateResult?.has_update}
+            <span class="tab-badge-dot"></span>
+          {/if}
         </button>
       </div>
 
@@ -150,10 +188,92 @@
           <PluginsTab lang={localSettings.language} initialSubtab={initialSubtab} />
         {:else if activeTab === 'about'}
           <div class="about-section">
-            <h3>Peekit v1.2.0</h3>
+            <h3>Peekit v1.3.0</h3>
             <p class="about-desc">{t('app_subtitle', localSettings.language)}</p>
             <p class="about-tech">Rust (Win32 COM) + Tauri v2 + Svelte 5</p>
             <p class="about-author">{t('author', localSettings.language)}</p>
+
+            <!-- Updater Box -->
+            <div class="updater-box">
+              <div class="updater-header">
+                <div class="updater-status">
+                  {#if isCheckingUpdates}
+                    <span class="status-dot pulse"></span>
+                    <span class="status-msg">{t('checking_updates', localSettings.language)}</span>
+                  {:else if updateResult?.has_update}
+                    <span class="status-dot update-available"></span>
+                    <span class="status-msg update-available-text">{t('updates_available', localSettings.language)}: v{updateResult.latest_version}</span>
+                  {:else if updateResult && !updateResult.has_update}
+                    <span class="status-dot up-to-date"></span>
+                    <span class="status-msg up-to-date-text">{t('updates_latest', localSettings.language)}</span>
+                  {:else}
+                    <span class="status-dot idle"></span>
+                    <span class="status-msg">{t('version', localSettings.language)} 1.3.0</span>
+                  {/if}
+                </div>
+
+                <button 
+                  class="btn-check-updates" 
+                  on:click={() => handleCheckUpdates(true)} 
+                  disabled={isCheckingUpdates}
+                  title={t('check_updates', localSettings.language)}
+                >
+                  <svg class="{isCheckingUpdates ? 'spin-icon' : ''}" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+                  </svg>
+                  <span>{t('check_updates', localSettings.language)}</span>
+                </button>
+              </div>
+
+              {#if updateError}
+                <div class="updater-error">{updateError}</div>
+              {/if}
+
+              {#if updateResult?.has_update}
+                <div class="updater-card">
+                  <div class="updater-card-header">
+                    <span class="card-badge">v{updateResult.latest_version}</span>
+                    <span class="card-title">{t('updates_available', localSettings.language)}</span>
+                  </div>
+
+                  <div class="updater-card-actions">
+                    {#if updateResult.setup_url}
+                      <button class="btn-update-download primary" on:click={() => openLink(updateResult!.setup_url!)}>
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="7 10 12 15 17 10" />
+                          <line x1="12" y1="15" x2="12" y2="3" />
+                        </svg>
+                        <span>{t('download_setup', localSettings.language)}</span>
+                      </button>
+                    {/if}
+
+                    {#if updateResult.portable_url}
+                      <button class="btn-update-download secondary" on:click={() => openLink(updateResult!.portable_url!)}>
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        <span>{t('download_portable', localSettings.language)}</span>
+                      </button>
+                    {/if}
+                  </div>
+
+                  {#if updateResult.release_url}
+                    <button class="btn-release-notes" on:click={() => openLink(updateResult!.release_url)}>
+                      {t('view_release_notes', localSettings.language)}
+                    </button>
+                  {/if}
+                </div>
+              {/if}
+
+              <div class="updater-auto-row">
+                <input type="checkbox" id="autoCheckUpdates" bind:checked={localSettings.auto_check_updates} />
+                <label for="autoCheckUpdates">
+                  <span class="auto-title">{t('auto_check_updates', localSettings.language)}</span>
+                  <span class="auto-desc">{t('auto_check_updates_desc', localSettings.language)}</span>
+                </label>
+              </div>
+            </div>
             <div class="about-links">
               <button class="link-btn" on:click={() => openLink('https://github.com/kobaltgit/peekit')}>
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -432,10 +552,260 @@
     transition: transform 0.2s ease;
   }
 
-  .link-btn:hover svg {
-    transform: scale(1.1);
+  /* Updater Block Styles */
+  .tab-badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 6px #f59e0b;
+    margin-left: 6px;
   }
 
+  .updater-box {
+    background: var(--bg-subtle, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin: 14px auto;
+    max-width: 440px;
+    text-align: left;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  }
+
+  .updater-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .updater-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 24px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .status-dot.idle {
+    background: var(--text-muted, #94a3b8);
+  }
+
+  .status-dot.up-to-date {
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+
+  .status-dot.update-available {
+    background: #f59e0b;
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  }
+
+  .status-dot.pulse {
+    background: var(--accent, #3b82f6);
+    box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    animation: pulse-glow 1.2s infinite ease-in-out;
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+
+  .status-msg {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-main, #f1f5f9);
+  }
+
+  .status-msg.up-to-date-text {
+    color: #10b981;
+  }
+
+  .status-msg.update-available-text {
+    color: #f59e0b;
+    font-weight: 600;
+  }
+
+  .btn-check-updates {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    color: var(--text-main, #f1f5f9);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn-check-updates:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: var(--accent, #3b82f6);
+    color: #ffffff;
+  }
+
+  .btn-check-updates:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .spin-icon {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .updater-error {
+    font-size: 11.5px;
+    color: #ef4444;
+    margin-top: 8px;
+    padding: 6px 10px;
+    background: rgba(239, 68, 68, 0.1);
+    border-radius: 6px;
+  }
+
+  .updater-card {
+    background: rgba(245, 158, 11, 0.07);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .updater-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .card-badge {
+    background: #f59e0b;
+    color: #0f172a;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .card-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main, #f1f5f9);
+  }
+
+  .updater-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .btn-update-download {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: none;
+  }
+
+  .btn-update-download.primary {
+    background: #10b981;
+    color: #ffffff;
+  }
+
+  .btn-update-download.primary:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(16, 185, 129, 0.3);
+  }
+
+  .btn-update-download.secondary {
+    background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+    border: 1px solid var(--border-color, rgba(255, 255, 255, 0.15));
+    color: var(--text-main, #f1f5f9);
+  }
+
+  .btn-update-download.secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent, #3b82f6);
+    color: #ffffff;
+    transform: translateY(-1px);
+  }
+
+  .btn-release-notes {
+    display: inline-block;
+    margin-top: 8px;
+    background: transparent;
+    border: none;
+    color: var(--accent, #3b82f6);
+    font-size: 11.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    padding: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  .btn-release-notes:hover {
+    opacity: 0.8;
+  }
+
+  .updater-auto-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color, rgba(255, 255, 255, 0.06));
+  }
+
+  .updater-auto-row input[type="checkbox"] {
+    margin-top: 2px;
+    cursor: pointer;
+  }
+
+  .updater-auto-row label {
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .auto-title {
+    font-size: 11.5px;
+    color: var(--text-main, #f1f5f9);
+    font-weight: 500;
+  }
+
+  .auto-desc {
+    font-size: 10.5px;
+    color: var(--text-dim, #64748b);
+  }
 
   .modal-footer {
     display: flex;

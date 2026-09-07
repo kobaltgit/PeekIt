@@ -20,11 +20,18 @@
     {/if}
 
     <div class="file-icon-circle">
-      <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6">
-        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
-        <polyline points="13 2 13 9 20 9" />
-      </svg>
-      <span class="ext-badge">{file.extension.toUpperCase() || 'FILE'}</span>
+      {#if file.category === 'folder'}
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="ext-badge">DIR</span>
+      {:else}
+        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+          <polyline points="13 2 13 9 20 9" />
+        </svg>
+        <span class="ext-badge">{file.extension.toUpperCase() || 'FILE'}</span>
+      {/if}
     </div>
 
     <h2 class="file-name">{file.fileName}</h2>
@@ -38,10 +45,20 @@
         <span class="meta-label">{t('modified', lang)}</span>
         <span class="meta-val">{file.modified}</span>
       </div>
-      <div class="meta-item full">
-        <span class="meta-label">MIME</span>
-        <span class="meta-val mono">{file.mimeType}</span>
-      </div>
+      {#if file.extra?.folderStats}
+        <div class="meta-item full">
+          <span class="meta-label">{lang === 'ru' ? 'Содержимое (1-й уровень)' : 'Contents (1st level)'}</span>
+          <span class="meta-val">
+            {file.extra.folderStats.fileCount + file.extra.folderStats.folderCount} {lang === 'ru' ? 'элементов' : 'items'}
+            ({file.extra.folderStats.fileCount} {lang === 'ru' ? 'файлов' : 'files'}, {file.extra.folderStats.folderCount} {lang === 'ru' ? 'папок' : 'folders'})
+          </span>
+        </div>
+      {:else}
+        <div class="meta-item full">
+          <span class="meta-label">MIME</span>
+          <span class="meta-val mono">{file.mimeType}</span>
+        </div>
+      {/if}
     </div>
 
     <button class="btn-open-primary" on:click={onOpenApp}>

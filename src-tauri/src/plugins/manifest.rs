@@ -40,7 +40,9 @@ impl PluginManifest {
         for ext in &self.extensions {
             let trimmed = ext.trim().to_lowercase();
             if !trimmed.is_empty() {
-                let formatted = if trimmed.starts_with('.') {
+                let formatted = if trimmed == "<folder>" || trimmed == "folder" {
+                    "<folder>".to_string()
+                } else if trimmed.starts_with('.') {
                     trimmed
                 } else {
                     format!(".{}", trimmed)

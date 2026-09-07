@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import type { AppLanguage, RegistryPlugin } from '$lib/types';
+  import type { AppLanguage, RegistryPlugin, PluginInfo } from '$lib/types';
   import { t } from '$lib/i18n';
   import { pluginRegistry } from '$lib/stores/plugins.svelte';
   import { open } from '@tauri-apps/plugin-dialog';
@@ -10,6 +10,21 @@
 
   let subtab: 'installed' | 'store' = initialSubtab;
   let prevInitialSubtab = initialSubtab;
+
+  // Local reactive state for installed plugins
+  let installedPlugins: PluginInfo[] = [];
+  let isLoadingInstalled = false;
+
+  async function refreshInstalled() {
+    isLoadingInstalled = true;
+    try {
+      installedPlugins = await pluginRegistry.loadPlugins();
+    } catch (e) {
+      console.error('[PluginsTab] Failed to refresh installed plugins:', e);
+    } finally {
+      isLoadingInstalled = false;
+    }
+  }
 
   $: if (initialSubtab !== prevInitialSubtab) {
     prevInitialSubtab = initialSubtab;
@@ -37,6 +52,7 @@
     catalogError = '';
     try {
       onlinePlugins = await pluginRegistry.fetchOnlineCatalog();
+      await refreshInstalled();
     } catch (e: any) {
       catalogError = e?.message || t('store_failed_load', lang);
     } finally {
@@ -44,32 +60,23 @@
     }
   }
 
-  let pollInterval: any;
   let handleWindowFocus: () => void;
 
   onMount(() => {
-    pluginRegistry.loadPlugins();
+    refreshInstalled();
     if (subtab === 'store') {
       loadCatalog();
     }
 
     handleWindowFocus = () => {
-      pluginRegistry.loadPlugins();
+      refreshInstalled();
     };
     window.addEventListener('focus', handleWindowFocus);
-
-    // Auto-sync polling every 1.5s while Plugins tab is open
-    pollInterval = setInterval(() => {
-      pluginRegistry.loadPlugins();
-    }, 1500);
   });
 
   onDestroy(() => {
     if (typeof window !== 'undefined' && handleWindowFocus) {
       window.removeEventListener('focus', handleWindowFocus);
-    }
-    if (pollInterval) {
-      clearInterval(pollInterval);
     }
   });
 
@@ -78,7 +85,7 @@
   }
 
   function handleRefresh() {
-    pluginRegistry.loadPlugins();
+    refreshInstalled();
     if (subtab === 'store') {
       loadCatalog();
     }
@@ -92,6 +99,7 @@
       if (filePath) {
         try {
           const info = await pluginRegistry.installPluginPackage(filePath);
+          await refreshInstalled();
           installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
           setTimeout(() => { installMessage = ''; }, 4000);
         } catch (e: any) {
@@ -117,6 +125,7 @@
 
       if (selected && typeof selected === 'string') {
         const info = await pluginRegistry.installPluginPackage(selected);
+        await refreshInstalled();
         installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
         setTimeout(() => { installMessage = ''; }, 4000);
       }
@@ -142,6 +151,7 @@
       ].filter((u): u is string => Boolean(u));
 
       const info = await pluginRegistry.installPluginFromUrl(plugin.download_url, plugin.sha256, fallbackUrls);
+      await refreshInstalled();
       installMessage = `${t('plugins_installed_success', lang)} (${info.manifest.name})`;
       setTimeout(() => { installMessage = ''; }, 4000);
     } catch (e: any) {
@@ -155,6 +165,7 @@
   async function handleUninstallPlugin(id: string, name: string) {
     try {
       await pluginRegistry.uninstallPlugin(id);
+      await refreshInstalled();
       confirmingUninstallId = null;
       installMessage = lang === 'ru' ? `Плагин «${name}» удален` : `Plugin "${name}" uninstalled`;
       setTimeout(() => { installMessage = ''; }, 4000);
@@ -164,8 +175,13 @@
     }
   }
 
+  async function handleTogglePlugin(id: string, enabled: boolean) {
+    await pluginRegistry.togglePlugin(id, enabled);
+    await refreshInstalled();
+  }
+
   function getPluginStatus(plugin: RegistryPlugin) {
-    const installed = pluginRegistry.plugins.find(p => p.manifest.id === plugin.id);
+    const installed = installedPlugins.find(p => p.manifest.id === plugin.id);
     if (!installed) {
       return { isInstalled: false, hasUpdate: false, installedVersion: null };
     }
@@ -177,9 +193,11 @@
     { id: 'all', labelRu: 'Все', labelEn: 'All' },
     { id: 'graphics', labelRu: 'Графика', labelEn: 'Graphics' },
     { id: '3d', labelRu: '3D', labelEn: '3D' },
-    { id: 'document', labelRu: 'Документы', labelEn: 'Documents' },
-    { id: 'font', labelRu: 'Шрифты', labelEn: 'Fonts' },
-    { id: 'spreadsheet', labelRu: 'Таблицы', labelEn: 'Sheets' },
+    { id: 'documents', labelRu: 'Документы', labelEn: 'Documents' },
+    { id: 'fonts', labelRu: 'Шрифты', labelEn: 'Fonts' },
+    { id: 'spreadsheets', labelRu: 'Таблицы', labelEn: 'Sheets' },
+    { id: 'presentations', labelRu: 'Презентации', labelEn: 'Presentations' },
+    { id: 'utilities', labelRu: 'Утилиты', labelEn: 'Utilities' },
   ];
 
   function getEffectiveCategory(plugin: RegistryPlugin): string {
@@ -190,17 +208,23 @@
     if (exts.some(e => ['.stl', '.obj', '.gltf', '.glb', '.ply', '.3d'].includes(e)) || id.includes('3d')) {
       return '3d';
     }
-    if (exts.some(e => ['.psd', '.psb', '.ai', '.eps', '.svg'].includes(e)) || id.includes('psd') || id.includes('ai') || id.includes('eps')) {
+    if (exts.some(e => ['.psd', '.psb', '.ai', '.eps', '.svg', '.dds'].includes(e)) || id.includes('psd') || id.includes('ai') || id.includes('eps') || id.includes('dds')) {
       return 'graphics';
     }
     if (exts.some(e => ['.ttf', '.otf', '.woff', '.woff2'].includes(e)) || id.includes('font')) {
-      return 'font';
+      return 'fonts';
     }
     if (exts.some(e => ['.xlsx', '.xls', '.csv', '.tsv', '.ods'].includes(e)) || id.includes('sheet')) {
-      return 'spreadsheet';
+      return 'spreadsheets';
     }
-    if (exts.some(e => ['.pptx', '.ppt', '.docx', '.doc', '.epub', '.fb2', '.pdf'].includes(e)) || id.includes('docx') || id.includes('ebook') || id.includes('slides')) {
-      return 'document';
+    if (exts.some(e => ['.pptx', '.ppt', '.key', '.odp'].includes(e)) || id.includes('slides') || id.includes('presentation')) {
+      return 'presentations';
+    }
+    if (exts.some(e => ['.docx', '.doc', '.epub', '.fb2', '.pdf'].includes(e)) || id.includes('docx') || id.includes('ebook')) {
+      return 'documents';
+    }
+    if (exts.some(e => ['.apk', '.db', '.sqlite', '.sqlite3'].includes(e)) || id.includes('apk') || id.includes('sqlite')) {
+      return 'utilities';
     }
     return 'other';
   }
@@ -211,12 +235,16 @@
         return currentLang === 'ru' ? 'ГРАФИКА' : 'GRAPHICS';
       case '3d':
         return '3D';
-      case 'document':
+      case 'documents':
         return currentLang === 'ru' ? 'ДОКУМЕНТЫ' : 'DOCS';
-      case 'font':
+      case 'fonts':
         return currentLang === 'ru' ? 'ШРИФТЫ' : 'FONTS';
-      case 'spreadsheet':
+      case 'spreadsheets':
         return currentLang === 'ru' ? 'ТАБЛИЦЫ' : 'SHEETS';
+      case 'presentations':
+        return currentLang === 'ru' ? 'ПРЕЗЕНТАЦИИ' : 'SLIDES';
+      case 'utilities':
+        return currentLang === 'ru' ? 'УТИЛИТЫ' : 'UTILS';
       default:
         return currentLang === 'ru' ? 'ПЛАГИН' : 'PLUGIN';
     }
@@ -250,12 +278,16 @@
         return { bg: 'rgba(249, 115, 22, 0.12)', text: '#f97316', border: 'rgba(249, 115, 22, 0.25)' };
       case '3d':
         return { bg: 'rgba(6, 182, 212, 0.12)', text: '#06b6d4', border: 'rgba(6, 182, 212, 0.25)' };
-      case 'document':
+      case 'documents':
         return { bg: 'rgba(59, 130, 246, 0.12)', text: '#3b82f6', border: 'rgba(59, 130, 246, 0.25)' };
-      case 'font':
+      case 'fonts':
         return { bg: 'rgba(168, 85, 247, 0.12)', text: '#a855f7', border: 'rgba(168, 85, 247, 0.25)' };
-      case 'spreadsheet':
+      case 'spreadsheets':
         return { bg: 'rgba(16, 185, 129, 0.12)', text: '#10b981', border: 'rgba(16, 185, 129, 0.25)' };
+      case 'presentations':
+        return { bg: 'rgba(234, 179, 8, 0.12)', text: '#eab308', border: 'rgba(234, 179, 8, 0.25)' };
+      case 'utilities':
+        return { bg: 'rgba(156, 163, 175, 0.12)', text: '#9ca3af', border: 'rgba(156, 163, 175, 0.25)' };
       default:
         return { bg: 'rgba(100, 116, 139, 0.12)', text: 'var(--text-muted)', border: 'rgba(100, 116, 139, 0.25)' };
     }
@@ -283,7 +315,7 @@
         <line x1="12" y1="22.08" x2="12" y2="12" />
       </svg>
       <span>{t('plugins_subtab_installed', lang)}</span>
-      <span class="badge-num">{pluginRegistry.plugins.length}</span>
+      <span class="badge-num">{installedPlugins.length}</span>
     </button>
 
     <button
@@ -350,11 +382,11 @@
       </div>
 
       <div class="plugins-list">
-        {#if pluginRegistry.isLoading}
+        {#if isLoadingInstalled}
           <div class="plugins-loading">
             <div class="spinner"></div>
           </div>
-        {:else if pluginRegistry.plugins.length === 0}
+        {:else if installedPlugins.length === 0}
           <div class="plugins-empty">
             <div class="empty-icon">🧩</div>
             <p>{t('plugins_empty', lang)}</p>
@@ -363,7 +395,7 @@
             </button>
           </div>
         {:else}
-          {#each pluginRegistry.plugins as plugin (plugin.manifest.id)}
+          {#each installedPlugins as plugin (plugin.manifest.id)}
             <div class="plugin-card {plugin.isEnabled ? '' : 'disabled'}">
               <div class="plugin-header">
                 <div class="plugin-info">
@@ -414,7 +446,7 @@
                     <input
                       type="checkbox"
                       checked={plugin.isEnabled}
-                      on:change={() => pluginRegistry.togglePlugin(plugin.manifest.id, !plugin.isEnabled)}
+                      on:change={() => handleTogglePlugin(plugin.manifest.id, !plugin.isEnabled)}
                     />
                     <span class="slider"></span>
                   </label>

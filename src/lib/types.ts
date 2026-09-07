@@ -7,6 +7,7 @@ export type FileCategory =
   | 'markdown'
   | 'archive'
   | 'text'
+  | 'folder'
   | 'generic';
 
 export interface ArchiveEntry {
@@ -15,6 +16,23 @@ export interface ArchiveEntry {
   sizeBytes: number;
   compressedSizeBytes: number;
   isDirectory: boolean;
+}
+
+export interface FolderItem {
+  name: string;
+  path: string;
+  isDir: boolean;
+  sizeBytes: number;
+  sizeFormatted: string;
+  modified: string;
+  extension: string;
+}
+
+export interface FolderStats {
+  fileCount: number;
+  folderCount: number;
+  totalBytes: number;
+  totalFormatted: string;
 }
 
 export interface FileDimensions {
@@ -28,6 +46,8 @@ export interface FileExtraInfo {
   lineCount?: number;
   archiveEntries?: ArchiveEntry[];
   isCloudPlaceholder?: boolean;
+  folderItems?: FolderItem[];
+  folderStats?: FolderStats;
 }
 
 export interface FilePreviewInfo {
@@ -53,7 +73,19 @@ export interface AppSettings {
   autoplayMedia: boolean;
   volume: number;
   stayOnTop: boolean;
+  auto_check_updates?: boolean;
   disabledPlugins?: string[];
+}
+
+export interface UpdateCheckResult {
+  has_update: boolean;
+  current_version: string;
+  latest_version: string;
+  release_url: string;
+  setup_url?: string;
+  portable_url?: string;
+  release_notes: string;
+  published_at: string;
 }
 
 export interface PluginManifest {

@@ -6,7 +6,7 @@ class PluginRegistry {
   isLoading = $state(false);
   error = $state<string | null>(null);
 
-  async loadPlugins() {
+  async loadPlugins(): Promise<PluginInfo[]> {
     this.isLoading = true;
     this.error = null;
     try {
@@ -18,9 +18,18 @@ class PluginRegistry {
     } finally {
       this.isLoading = false;
     }
+    return this.plugins;
   }
 
-  findPluginForFile(extension: string): PluginInfo | undefined {
+  findPluginForFile(extension: string, isFolder: boolean = false): PluginInfo | undefined {
+    if (isFolder || extension === '<folder>' || extension === 'folder') {
+      return this.plugins.find(
+        p => p.isEnabled && p.manifest.extensions.some(e => {
+          const lower = e.toLowerCase();
+          return lower === '<folder>' || lower === 'folder';
+        })
+      );
+    }
     let norm = (extension || '').trim().toLowerCase();
     if (!norm.startsWith('.')) norm = '.' + norm;
     return this.plugins.find(

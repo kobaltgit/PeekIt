@@ -20,6 +20,27 @@ pub struct ArchiveEntry {
     pub is_directory: bool,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderItem {
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+    pub size_bytes: u64,
+    pub size_formatted: String,
+    pub modified: String,
+    pub extension: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderStats {
+    pub file_count: usize,
+    pub folder_count: usize,
+    pub total_bytes: u64,
+    pub total_formatted: String,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct FileExtraInfo {
@@ -28,6 +49,8 @@ pub struct FileExtraInfo {
     pub line_count: Option<usize>,
     pub archive_entries: Option<Vec<ArchiveEntry>>,
     pub is_cloud_placeholder: Option<bool>,
+    pub folder_items: Option<Vec<FolderItem>>,
+    pub folder_stats: Option<FolderStats>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,6 +101,75 @@ pub fn detect_category(ext: &str) -> &'static str {
     }
 }
 
+pub fn read_folder_entries(path_str: &str) -> Result<Vec<FolderItem>, String> {
+    let path = Path::new(path_str);
+    if !path.exists() {
+        return Err("Directory does not exist".to_string());
+    }
+    if !path.is_dir() {
+        return Err("Target path is not a directory".to_string());
+    }
+
+    let read_dir = std::fs::read_dir(path).map_err(|e| format!("Cannot read directory: {}", e))?;
+
+    let mut items = Vec::new();
+    for entry_res in read_dir {
+        if let Ok(entry) = entry_res {
+            let entry_path = entry.path();
+            let entry_meta = entry.metadata().ok();
+            let is_dir = entry_meta.as_ref().map(|m| m.is_dir()).unwrap_or(false);
+            let size_bytes = if is_dir {
+                0
+            } else {
+                entry_meta.as_ref().map(|m| m.len()).unwrap_or(0)
+            };
+            let size_formatted = if is_dir {
+                String::new()
+            } else {
+                format_bytes(size_bytes)
+            };
+            let name = entry.file_name().to_string_lossy().to_string();
+            let extension = if is_dir {
+                "<folder>".to_string()
+            } else {
+                entry_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase()
+            };
+            let modified = entry_meta
+                .and_then(|m| m.modified().ok())
+                .and_then(|t| {
+                    let datetime: chrono::DateTime<chrono::Local> = t.into();
+                    Some(datetime.format("%Y-%m-%d %H:%M").to_string())
+                })
+                .unwrap_or_else(|| "Unknown".to_string());
+
+            items.push(FolderItem {
+                name,
+                path: entry_path.to_string_lossy().to_string(),
+                is_dir,
+                size_bytes,
+                size_formatted,
+                modified,
+                extension,
+            });
+
+            if items.len() >= 1000 {
+                break;
+            }
+        }
+    }
+
+    // Sort: directories first, then alphabetical
+    items.sort_by(|a, b| {
+        if a.is_dir != b.is_dir {
+            b.is_dir.cmp(&a.is_dir)
+        } else {
+            a.name.to_lowercase().cmp(&b.name.to_lowercase())
+        }
+    });
+
+    Ok(items)
+}
+
 pub fn inspect_file(path_str: &str) -> Result<FilePreviewInfo, String> {
     let path = Path::new(path_str);
     if !path.exists() {
@@ -85,14 +177,63 @@ pub fn inspect_file(path_str: &str) -> Result<FilePreviewInfo, String> {
     }
 
     let metadata = std::fs::metadata(path).map_err(|e| e.to_string())?;
-    let size_bytes = metadata.len();
-    let size_formatted = format_bytes(size_bytes);
 
     let file_name = path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Unknown")
         .to_string();
+
+    if metadata.is_dir() {
+        let items = read_folder_entries(path_str).unwrap_or_default();
+        let mut file_count = 0;
+        let mut folder_count = 0;
+        let mut total_bytes = 0;
+
+        for item in &items {
+            if item.is_dir {
+                folder_count += 1;
+            } else {
+                file_count += 1;
+                total_bytes += item.size_bytes;
+            }
+        }
+
+        let stats = FolderStats {
+            file_count,
+            folder_count,
+            total_bytes,
+            total_formatted: format_bytes(total_bytes),
+        };
+
+        let mut extra = FileExtraInfo::default();
+        extra.folder_items = Some(items);
+        extra.folder_stats = Some(stats);
+
+        let modified = metadata
+            .modified()
+            .ok()
+            .and_then(|t| {
+                let datetime: chrono::DateTime<chrono::Local> = t.into();
+                Some(datetime.format("%Y-%m-%d %H:%M").to_string())
+            })
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        return Ok(FilePreviewInfo {
+            path: path_str.to_string(),
+            file_name,
+            extension: "<folder>".to_string(),
+            size_bytes: total_bytes,
+            size_formatted: format_bytes(total_bytes),
+            modified,
+            category: "folder".to_string(),
+            mime_type: "inode/directory".to_string(),
+            extra: Some(extra),
+        });
+    }
+
+    let size_bytes = metadata.len();
+    let size_formatted = format_bytes(size_bytes);
 
     let extension = path
         .extension()

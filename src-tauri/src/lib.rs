@@ -3,6 +3,7 @@ mod explorer;
 mod hook;
 mod plugins;
 mod preview;
+pub mod updater;
 
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
@@ -63,6 +64,8 @@ pub fn run() {
             commands::install_plugin,
             commands::install_plugin_bytes,
             commands::uninstall_plugin,
+            commands::read_folder_entries,
+            commands::check_for_updates,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");
@@ -93,7 +96,8 @@ pub fn run() {
             };
 
             // Setup System Tray
-            let title_i = MenuItem::with_id(app, "title", "Peekit v1.2.0", false, None::<&str>)?;
+            let title_str = format!("Peekit v{}", env!("CARGO_PKG_VERSION"));
+            let title_i = MenuItem::with_id(app, "title", &title_str, false, None::<&str>)?;
             let sep1 = PredefinedMenuItem::separator(app)?;
             let marketplace_i = MenuItem::with_id(app, "marketplace", "Магазин плагинов (Store)", true, None::<&str>)?;
             let settings_i = MenuItem::with_id(app, "settings", "Параметры (Settings)", true, None::<&str>)?;
@@ -109,56 +113,45 @@ pub fn run() {
                     let _ = window.unminimize();
                     let _ = window.show();
                     let _ = window.set_focus();
-                    #[cfg(windows)]
-                    if let Ok(hwnd) = window.hwnd() {
-                        unsafe {
-                            let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(windows::Win32::Foundation::HWND(hwnd.0));
-                        }
-                    }
                 }
             };
 
-            let tray = TrayIconBuilder::with_id("main_tray")
+            let tray = TrayIconBuilder::new()
                 .icon(icon)
                 .menu(&menu)
-                .tooltip("Peekit - Мгновенный просмотр по Пробелу")
-                .on_menu_event(move |app, event| match event.id.as_ref() {
-                    "quit" => {
-                        crate::log_debug("Quit menu clicked");
-                        std::process::exit(0);
+                .show_menu_on_left_click(false)
+                .on_menu_event(move |app, event| {
+                    crate::log_debug(&format!("Tray menu event: {:?}", event.id()));
+                    match event.id().as_ref() {
+                        "settings" => {
+                            crate::log_debug("Settings menu clicked");
+                            open_dialog_tab(app, serde_json::json!({ "tab": "general" }));
+                        }
+                        "marketplace" => {
+                            crate::log_debug("Marketplace menu clicked");
+                            open_dialog_tab(app, serde_json::json!({ "tab": "plugins", "subtab": "store" }));
+                        }
+                        "about" => {
+                            crate::log_debug("About menu clicked");
+                            open_dialog_tab(app, serde_json::json!({ "tab": "about" }));
+                        }
+                        "quit" => {
+                            crate::log_debug("Quit clicked -> exiting");
+                            app.exit(0);
+                        }
+                        _ => {}
                     }
-                    "marketplace" => {
-                        crate::log_debug("Marketplace menu clicked");
-                        open_dialog_tab(app, serde_json::json!({ "tab": "plugins", "subtab": "store" }));
-                    }
-                    "settings" => {
-                        crate::log_debug("Settings menu clicked");
-                        open_dialog_tab(app, serde_json::json!({ "tab": "general" }));
-                    }
-                    "about" => {
-                        crate::log_debug("About menu clicked");
-                        open_dialog_tab(app, serde_json::json!({ "tab": "about" }));
-                    }
-                    _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
-                    if let TrayIconEvent::Click { button, .. } = event {
-                        if button == tauri::tray::MouseButton::Left {
-                            let app = tray.app_handle();
-                            if let Some(window) = app.get_webview_window("main") {
-                                if window.is_visible().unwrap_or(false) {
-                                    let _ = window.hide();
-                                } else {
-                                    let _ = window.show();
-                                    let _ = window.set_focus();
-                                    #[cfg(windows)]
-                                    if let Ok(hwnd) = window.hwnd() {
-                                        unsafe {
-                                            let _ = windows::Win32::UI::WindowsAndMessaging::SetForegroundWindow(windows::Win32::Foundation::HWND(hwnd.0));
-                                        }
-                                    }
-                                }
-                            }
+                    if let TrayIconEvent::Click { button: tauri::tray::MouseButton::Left, .. } = event {
+                        crate::log_debug("Tray left-clicked");
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("open_settings", serde_json::json!({ "tab": "general" }));
+                            let _ = app.emit("open_settings", serde_json::json!({ "tab": "general" }));
+                            let _ = window.unminimize();
+                            let _ = window.show();
+                            let _ = window.set_focus();
                         }
                     }
                 })
@@ -168,6 +161,9 @@ pub fn run() {
 
             // Start global Spacebar hook on main thread
             hook::start_hook(app.handle().clone());
+
+            // Start background updater thread
+            updater::start_background_updater(app.handle().clone());
 
             crate::log_debug("setup completed successfully");
             Ok(())

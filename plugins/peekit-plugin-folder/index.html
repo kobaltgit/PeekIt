@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Folder Contents Viewer</title>
+  <style>
+    :root {
+      --bg-base: #0d1117;
+      --bg-surface: #161b22;
+      --bg-card: rgba(22, 27, 34, 0.85);
+      --bg-hover: rgba(255, 255, 255, 0.06);
+      --bg-active: rgba(56, 189, 248, 0.16);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #38bdf8;
+      --text-main: #f0f6fc;
+      --text-muted: #8b949e;
+      --text-dim: #586069;
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.25);
+      --folder-color: #eab308;
+      --folder-bg: rgba(234, 179, 8, 0.12);
+      --badge-bg: rgba(255, 255, 255, 0.06);
+      --badge-border: rgba(255, 255, 255, 0.1);
+      --type-image: #38bdf8;
+      --type-video: #a855f7;
+      --type-audio: #ec4899;
+      --type-doc: #3b82f6;
+      --type-archive: #f97316;
+      --type-code: #10b981;
+      --type-exec: #ef4444;
+      --type-other: #6b7280;
+      --font-stack: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg-base: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-card: rgba(255, 255, 255, 0.9);
+      --bg-hover: rgba(0, 0, 0, 0.04);
+      --bg-active: rgba(2, 132, 199, 0.12);
+      --border-subtle: rgba(0, 0, 0, 0.08);
+      --border-focus: #0284c7;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-dim: #94a3b8;
+      --accent: #0284c7;
+      --accent-glow: rgba(2, 132, 199, 0.2);
+      --folder-color: #ca8a04;
+      --folder-bg: rgba(202, 138, 4, 0.12);
+      --badge-bg: rgba(0, 0, 0, 0.04);
+      --badge-border: rgba(0, 0, 0, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-main);
+      font-family: var(--font-stack);
+      font-size: 13px;
+      line-height: 1.4;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header Bar */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px;
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .folder-icon-wrapper {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--folder-bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      color: var(--folder-color);
+    }
+
+    .folder-details {
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .folder-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .folder-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .folder-path {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 1px;
+    }
+
+    .folder-path:hover {
+      color: var(--accent);
+    }
+
+    /* Badges & Stats */
+    .header-stats {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .stat-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .stat-badge.limit-warning {
+      color: #f59e0b;
+      background: rgba(245, 158, 11, 0.12);
+      border-color: rgba(245, 158, 11, 0.25);
+    }
+
+    /* Controls */
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .search-input {
+      width: 190px;
+      height: 30px;
+      padding: 0 26px 0 30px;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 12px;
+      outline: none;
+      transition: all 0.2s ease;
+      user-select: text;
+    }
+
+    .search-input:focus {
+      width: 240px;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 9px;
+      color: var(--text-dim);
+      pointer-events: none;
+      display: flex;
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 7px;
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      display: none;
+      padding: 2px;
+      border-radius: 4px;
+    }
+
+    .search-clear:hover {
+      color: var(--text-main);
+    }
+
+    .icon-btn {
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--bg-base);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:hover {
+      color: var(--text-main);
+      border-color: var(--accent);
+      background: var(--bg-hover);
+    }
+
+    .icon-btn.active {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: var(--bg-active);
+    }
+
+    /* Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Table View */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--bg-surface);
+      z-index: 10;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    th {
+      padding: 8px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: color 0.15s ease;
+    }
+
+    th:hover {
+      color: var(--text-main);
+    }
+
+    th.sorted {
+      color: var(--accent);
+    }
+
+    th .sort-icon {
+      display: inline-block;
+      margin-left: 4px;
+      font-size: 10px;
+      vertical-align: middle;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      transition: background-color 0.1s ease;
+      content-visibility: auto;
+      contain-intrinsic-size: 0 38px;
+    }
+
+    tbody tr:hover {
+      background-color: var(--bg-hover);
+    }
+
+    tbody tr.selected {
+      background-color: var(--bg-active) !important;
+    }
+
+    td {
+      padding: 7px 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      vertical-align: middle;
+    }
+
+    .col-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      max-width: 480px;
+    }
+
+    .item-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+    }
+
+    .item-title {
+      font-weight: 500;
+      color: var(--text-main);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    mark {
+      background: rgba(56, 189, 248, 0.3);
+      color: var(--text-main);
+      border-radius: 2px;
+      padding: 0 1px;
+    }
+
+    .ext-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .ext-badge.folder {
+      color: var(--folder-color);
+      background: var(--folder-bg);
+      border-color: rgba(234, 179, 8, 0.2);
+    }
+
+    .col-size {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+    }
+
+    .col-date {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .col-actions {
+      text-align: right;
+      width: 80px;
+    }
+
+    .row-action-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      background: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      color: var(--text-dim);
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.15s ease;
+    }
+
+    tbody tr:hover .row-action-btn,
+    tbody tr.selected .row-action-btn {
+      opacity: 1;
+    }
+
+    .row-action-btn:hover {
+      color: var(--accent);
+      background: var(--bg-surface);
+      border-color: var(--border-subtle);
+    }
+
+    /* Grid View */
+    .grid-view {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .grid-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 14px 10px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+
+    .grid-card:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+
+    .grid-card.selected {
+      background: var(--bg-active);
+      border-color: var(--accent);
+    }
+
+    .grid-card-icon {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+    }
+
+    .grid-card-name {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-main);
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .grid-card-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Empty State */
+    .empty-state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 40px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    .empty-icon {
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .empty-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+
+    .empty-desc {
+      font-size: 12px;
+    }
+
+    /* Footer Status & Insights Bar */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 6px 16px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border-subtle);
+      font-size: 11px;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .breakdown-bar {
+      display: flex;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.08);
+      width: 140px;
+      flex-shrink: 0;
+    }
+
+    .breakdown-seg {
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+
+    .footer-hints {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    kbd {
+      display: inline-block;
+      padding: 1px 4px;
+      font-family: inherit;
+      font-size: 10px;
+      background: var(--badge-bg);
+      border: 1px solid var(--badge-border);
+      border-radius: 3px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="folder-icon-wrapper" id="btnRevealFolder" title="Показать папку в Проводнике">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        </svg>
+      </div>
+      <div class="folder-details">
+        <div class="folder-title-row">
+          <span class="folder-name" id="folderName">Папка</span>
+        </div>
+        <div class="folder-path" id="folderPath" title="Нажмите, чтобы скопировать путь">
+          <span id="folderPathText">...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Badges -->
+    <div class="header-stats" id="headerStats">
+      <span class="stat-badge" id="badgeFolders">0 папок</span>
+      <span class="stat-badge" id="badgeFiles">0 файлов</span>
+      <span class="stat-badge" id="badgeTotalSize">0 B</span>
+      <span class="stat-badge limit-warning" id="badgeLimit" style="display: none;">1000+ элементов</span>
+    </div>
+
+    <!-- Controls -->
+    <div class="header-controls">
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </span>
+        <input type="text" class="search-input" id="searchInput" placeholder="Поиск... (/)" spellcheck="false" autocomplete="off" />
+        <button class="search-clear" id="searchClearBtn" title="Очистить поиск (Esc)">×</button>
+      </div>
+
+      <button class="icon-btn active" id="btnViewTable" title="Таблица">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <button class="icon-btn" id="btnViewGrid" title="Сетка">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+      </button>
+
+      <button class="icon-btn" id="btnOpenExplorer" title="Открыть в Проводнике">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- Content Area -->
+  <main class="content-area" id="contentArea">
+    <!-- Table View -->
+    <table id="tableView">
+      <thead>
+        <tr>
+          <th id="thName" class="sorted" style="width: 50%;">
+            <span id="txtColName">Имя</span> <span class="sort-icon">▲</span>
+          </th>
+          <th id="thType" style="width: 14%;">
+            <span id="txtColType">Тип</span> <span class="sort-icon"></span>
+          </th>
+          <th id="thSize" class="col-size" style="width: 16%;">
+            <span id="txtColSize">Размер</span> <span class="sort-icon"></span>
+          </th>
+          <th id="thDate" style="width: 20%;">
+            <span id="txtColDate">Изменён</span> <span class="sort-icon"></span>
+          </th>
+          <th class="col-actions"></th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+
+    <!-- Grid View -->
+    <div class="grid-view" id="gridView" style="display: none;"></div>
+
+    <!-- Empty State -->
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </div>
+      <div class="empty-title" id="emptyTitle">Ничего не найдено</div>
+      <div class="empty-desc" id="emptyDesc">Попробуйте изменить поисковый запрос</div>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-left">
+      <span id="footerCount">0 элементов</span>
+      <div class="breakdown-bar" id="breakdownBar" title="Распределение типов файлов"></div>
+      <span id="breakdownLegend" style="font-size: 10px; color: var(--text-dim);"></span>
+    </div>
+    <div class="footer-hints">
+      <span><kbd>↵</kbd> / <kbd>2x Клик</kbd> <span id="txtHintOpen">Открыть</span></span>
+      <span><kbd>↑</kbd><kbd>↓</kbd> <span id="txtHintNav">Навигация</span></span>
+      <span><kbd>⎋</kbd> <span id="txtHintEsc">Сброс поиска</span></span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      'use strict';
+
+      let currentFolder = null;
+      let allItems = [];
+      let filteredItems = [];
+      let sortField = 'name';
+      let sortAsc = true;
+      let currentView = 'table'; // 'table' | 'grid'
+      let selectedIndex = -1;
+      let lang = 'ru';
+      let readyTimer = null;
+
+      // Icons SVG Definitions
+      const ICONS = {
+        folder: '<svg width="18" height="18" viewBox="0 0 24 24" fill="#EAB308"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>',
+        image: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+        video: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>',
+        audio: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC4899" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+        archive: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F97316" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>',
+        code: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+        doc: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>',
+        sheet: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10B981" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>',
+        exec: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+        other: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="2"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>'
+      };
+
+      const I18N = {
+        ru: {
+          folderDefault: 'Папка',
+          folders: 'папок',
+          files: 'файлов',
+          total: 'Всего',
+          searchPlaceholder: 'Поиск... (/)',
+          colName: 'Имя',
+          colType: 'Тип',
+          colSize: 'Размер',
+          colDate: 'Изменён',
+          emptyTitle: 'Ничего не найдено',
+          emptyDesc: 'Попробуйте изменить поисковый запрос',
+          emptyFolder: 'Папка пуста',
+          emptyFolderDesc: 'В этой директории нет файлов или подпапок',
+          openFile: 'Открыть',
+          revealExplorer: 'Показать в Проводнике',
+          copiedPath: 'Путь скопирован в буфер!',
+          showingOf: 'Показано {count} из {total}',
+          hintOpen: 'Открыть',
+          hintNav: 'Навигация',
+          hintEsc: 'Сброс',
+          limitBadge: '1000+ элементов'
+        },
+        en: {
+          folderDefault: 'Folder',
+          folders: 'folders',
+          files: 'files',
+          total: 'Total',
+          searchPlaceholder: 'Search... (/)',
+          colName: 'Name',
+          colType: 'Type',
+          colSize: 'Size',
+          colDate: 'Modified',
+          emptyTitle: 'No items found',
+          emptyDesc: 'Try adjusting your search query',
+          emptyFolder: 'Folder is empty',
+          emptyFolderDesc: 'There are no files or subfolders here',
+          openFile: 'Open',
+          revealExplorer: 'Show in Explorer',
+          copiedPath: 'Path copied to clipboard!',
+          showingOf: 'Showing {count} of {total}',
+          hintOpen: 'Open',
+          hintNav: 'Navigate',
+          hintEsc: 'Clear',
+          limitBadge: '1000+ items'
+        }
+      };
+
+      function t(key) {
+        return I18N[lang]?.[key] || I18N.ru[key] || key;
+      }
+
+      function detectCategory(ext, isDir) {
+        if (isDir) return 'folder';
+        const e = (ext || '').toLowerCase().replace(/^\./, '');
+        if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'tiff'].includes(e)) return 'image';
+        if (['mp4', 'mkv', 'avi', 'mov', 'webm', 'wmv', 'flv'].includes(e)) return 'video';
+        if (['mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac', 'wma'].includes(e)) return 'audio';
+        if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'pkit', 'apk'].includes(e)) return 'archive';
+        if (['js', 'ts', 'jsx', 'tsx', 'rs', 'py', 'html', 'css', 'json', 'toml', 'yaml', 'yml', 'c', 'cpp', 'h', 'cs', 'go', 'dart', 'svelte', 'vue', 'sh', 'ps1', 'bat'].includes(e)) return 'code';
+        if (['pdf', 'doc', 'docx', 'rtf', 'odt', 'txt', 'md'].includes(e)) return 'doc';
+        if (['xls', 'xlsx', 'csv', 'tsv', 'ods'].includes(e)) return 'sheet';
+        if (['exe', 'msi', 'dll', 'sys'].includes(e)) return 'exec';
+        return 'other';
+      }
+
+      // UI Elements
+      const el = {
+        folderName: document.getElementById('folderName'),
+        folderPathText: document.getElementById('folderPathText'),
+        folderPath: document.getElementById('folderPath'),
+        badgeFolders: document.getElementById('badgeFolders'),
+        badgeFiles: document.getElementById('badgeFiles'),
+        badgeTotalSize: document.getElementById('badgeTotalSize'),
+        badgeLimit: document.getElementById('badgeLimit'),
+        searchInput: document.getElementById('searchInput'),
+        searchClearBtn: document.getElementById('searchClearBtn'),
+        btnViewTable: document.getElementById('btnViewTable'),
+        btnViewGrid: document.getElementById('btnViewGrid'),
+        btnRevealFolder: document.getElementById('btnRevealFolder'),
+        btnOpenExplorer: document.getElementById('btnOpenExplorer'),
+        tableView: document.getElementById('tableView'),
+        tableBody: document.getElementById('tableBody'),
+        gridView: document.getElementById('gridView'),
+        emptyState: document.getElementById('emptyState'),
+        emptyTitle: document.getElementById('emptyTitle'),
+        emptyDesc: document.getElementById('emptyDesc'),
+        footerCount: document.getElementById('footerCount'),
+        breakdownBar: document.getElementById('breakdownBar'),
+        breakdownLegend: document.getElementById('breakdownLegend'),
+        thName: document.getElementById('thName'),
+        thType: document.getElementById('thType'),
+        thSize: document.getElementById('thSize'),
+        thDate: document.getElementById('thDate'),
+        txtColName: document.getElementById('txtColName'),
+        txtColType: document.getElementById('txtColType'),
+        txtColSize: document.getElementById('txtColSize'),
+        txtColDate: document.getElementById('txtColDate'),
+        txtHintOpen: document.getElementById('txtHintOpen'),
+        txtHintNav: document.getElementById('txtHintNav'),
+        txtHintEsc: document.getElementById('txtHintEsc')
+      };
+
+      // IPC Setup
+      function sendToHost(type, payload = {}) {
+        window.parent.postMessage({ type, payload }, '*');
+      }
+
+      window.addEventListener('message', (event) => {
+        const msg = event.data;
+        if (!msg || typeof msg !== 'object') return;
+
+        switch (msg.type) {
+          case 'PEEKIT_INIT':
+            if (readyTimer) {
+              clearInterval(readyTimer);
+              readyTimer = null;
+            }
+            handleInit(msg.payload);
+            break;
+
+          case 'PEEKIT_THEME_CHANGED':
+            if (msg.payload?.theme) {
+              document.documentElement.setAttribute('data-theme', msg.payload.theme);
+            }
+            break;
+        }
+      });
+
+      // Signal ready until host responds
+      readyTimer = setInterval(() => sendToHost('PEEKIT_READY'), 100);
+      sendToHost('PEEKIT_READY');
+
+      function handleInit(payload) {
+        if (!payload) return;
+        currentFolder = payload;
+        lang = (payload.language === 'ru' || payload.language === 'en') ? payload.language : 'ru';
+
+        if (payload.theme) {
+          document.documentElement.setAttribute('data-theme', payload.theme);
+        }
+
+        updateLocalization();
+
+        el.folderName.textContent = payload.fileName || t('folderDefault');
+        el.folderPathText.textContent = payload.filePath || '';
+
+        const extra = payload.extra || {};
+        allItems = extra.folderItems || [];
+        const stats = extra.folderStats || {};
+
+        // Stats badges
+        el.badgeFolders.textContent = `${stats.folderCount || 0} ${t('folders')}`;
+        el.badgeFiles.textContent = `${stats.fileCount || 0} ${t('files')}`;
+        el.badgeTotalSize.textContent = stats.totalFormatted || '0 B';
+
+        if (allItems.length >= 1000) {
+          el.badgeLimit.style.display = 'inline-flex';
+          el.badgeLimit.textContent = t('limitBadge');
+        } else {
+          el.badgeLimit.style.display = 'none';
+        }
+
+        renderBreakdown(allItems);
+        applyFilterAndSort();
+      }
+
+      function updateLocalization() {
+        el.searchInput.placeholder = t('searchPlaceholder');
+        el.txtColName.textContent = t('colName');
+        el.txtColType.textContent = t('colType');
+        el.txtColSize.textContent = t('colSize');
+        el.txtColDate.textContent = t('colDate');
+        el.txtHintOpen.textContent = t('hintOpen');
+        el.txtHintNav.textContent = t('hintNav');
+        el.txtHintEsc.textContent = t('hintEsc');
+      }
+
+      function renderBreakdown(items) {
+        const counts = {};
+        let totalFiles = 0;
+
+        for (const item of items) {
+          if (!item.isDir) {
+            totalFiles++;
+            const cat = detectCategory(item.extension, false);
+            counts[cat] = (counts[cat] || 0) + 1;
+          }
+        }
+
+        if (totalFiles === 0) {
+          el.breakdownBar.style.display = 'none';
+          el.breakdownLegend.textContent = '';
+          return;
+        }
+
+        el.breakdownBar.style.display = 'flex';
+        const colorMap = {
+          image: 'var(--type-image)',
+          video: 'var(--type-video)',
+          audio: 'var(--type-audio)',
+          archive: 'var(--type-archive)',
+          code: 'var(--type-code)',
+          doc: 'var(--type-doc)',
+          sheet: 'var(--type-code)',
+          exec: 'var(--type-exec)',
+          other: 'var(--type-other)'
+        };
+
+        let barHtml = '';
+        let topEntries = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+        let legendStr = topEntries.map(([cat, cnt]) => `${cat.toUpperCase()} ${Math.round((cnt / totalFiles) * 100)}%`).join(' • ');
+
+        for (const [cat, cnt] of Object.entries(counts)) {
+          const pct = ((cnt / totalFiles) * 100).toFixed(1);
+          const color = colorMap[cat] || 'var(--type-other)';
+          barHtml += `<div class="breakdown-seg" style="width:${pct}%; background:${color};" title="${cat.toUpperCase()}: ${cnt} (${pct}%)"></div>`;
+        }
+
+        el.breakdownBar.innerHTML = barHtml;
+        el.breakdownLegend.textContent = legendStr;
+      }
+
+      function highlightMatch(text, query) {
+        if (!query) return escapeHtml(text);
+        const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedQuery})`, 'gi');
+        return escapeHtml(text).replace(regex, '<mark>$1</mark>');
+      }
+
+      function escapeHtml(str) {
+        return (str || '').replace(/[&<>"']/g, function (m) {
+          switch (m) {
+            case '&': return '&amp;';
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '"': return '&quot;';
+            case "'": return '&#39;';
+            default: return m;
+          }
+        });
+      }
+
+      function applyFilterAndSort() {
+        const query = (el.searchInput.value || '').trim().toLowerCase();
+        el.searchClearBtn.style.display = query ? 'block' : 'none';
+
+        if (!query) {
+          filteredItems = allItems.slice();
+        } else {
+          filteredItems = allItems.filter(item => {
+            const name = (item.name || '').toLowerCase();
+            const ext = (item.extension || '').toLowerCase();
+            return name.includes(query) || ext.includes(query);
+          });
+        }
+
+        // Sort items (directories always stay on top)
+        filteredItems.sort((a, b) => {
+          if (a.isDir !== b.isDir) {
+            return a.isDir ? -1 : 1;
+          }
+
+          let comp = 0;
+          if (sortField === 'name') {
+            comp = a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+          } else if (sortField === 'type') {
+            const extA = a.isDir ? '' : (a.extension || '');
+            const extB = b.isDir ? '' : (b.extension || '');
+            comp = extA.localeCompare(extB);
+          } else if (sortField === 'size') {
+            comp = (a.sizeBytes || 0) - (b.sizeBytes || 0);
+          } else if (sortField === 'date') {
+            comp = (a.modified || '').localeCompare(b.modified || '');
+          }
+
+          return sortAsc ? comp : -comp;
+        });
+
+        selectedIndex = filteredItems.length > 0 ? 0 : -1;
+        renderItems(query);
+      }
+
+      function renderItems(query) {
+        const total = allItems.length;
+        const count = filteredItems.length;
+
+        el.footerCount.textContent = total === count 
+          ? `${count} ${count === 1 ? t('files') : t('files')}`
+          : t('showingOf').replace('{count}', count).replace('{total}', total);
+
+        if (count === 0) {
+          el.tableView.style.display = 'none';
+          el.gridView.style.display = 'none';
+          el.emptyState.style.display = 'flex';
+
+          if (allItems.length === 0) {
+            el.emptyTitle.textContent = t('emptyFolder');
+            el.emptyDesc.textContent = t('emptyFolderDesc');
+          } else {
+            el.emptyTitle.textContent = t('emptyTitle');
+            el.emptyDesc.textContent = t('emptyDesc');
+          }
+          return;
+        }
+
+        el.emptyState.style.display = 'none';
+
+        if (currentView === 'table') {
+          el.tableView.style.display = 'table';
+          el.gridView.style.display = 'none';
+          renderTableView(query);
+        } else {
+          el.tableView.style.display = 'none';
+          el.gridView.style.display = 'grid';
+          renderGridView(query);
+        }
+      }
+
+      function renderTableView(query) {
+        let html = '';
+        for (let i = 0; i < filteredItems.length; i++) {
+          const item = filteredItems[i];
+          const isSelected = i === selectedIndex;
+          const cat = detectCategory(item.extension, item.isDir);
+          const icon = ICONS[cat] || ICONS.other;
+          const extBadge = item.isDir 
+            ? `<span class="ext-badge folder">DIR</span>` 
+            : `<span class="ext-badge">${escapeHtml((item.extension || '').toUpperCase())}</span>`;
+
+          html += `
+            <tr data-index="${i}" class="${isSelected ? 'selected' : ''}">
+              <td>
+                <div class="col-name-wrap">
+                  <span class="item-icon">${icon}</span>
+                  <span class="item-title" title="${escapeHtml(item.name)}">${highlightMatch(item.name, query)}</span>
+                </div>
+              </td>
+              <td>${extBadge}</td>
+              <td class="col-size">${item.isDir ? '—' : escapeHtml(item.sizeFormatted || '')}</td>
+              <td class="col-date">${escapeHtml(item.modified || '')}</td>
+              <td class="col-actions">
+                <button class="row-action-btn btn-open" data-index="${i}" title="${t('openFile')}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"/>
+                  </svg>
+                </button>
+                <button class="row-action-btn btn-reveal" data-index="${i}" title="${t('revealExplorer')}">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          `;
+        }
+        el.tableBody.innerHTML = html;
+      }
+
+      function renderGridView(query) {
+        let html = '';
+        for (let i = 0; i < filteredItems.length; i++) {
+          const item = filteredItems[i];
+          const isSelected = i === selectedIndex;
+          const cat = detectCategory(item.extension, item.isDir);
+          const icon = ICONS[cat] || ICONS.other;
+          const sub = item.isDir ? t('folders') : (item.sizeFormatted || item.extension?.toUpperCase() || '');
+
+          html += `
+            <div class="grid-card ${isSelected ? 'selected' : ''}" data-index="${i}" title="${escapeHtml(item.name)}">
+              <div class="grid-card-icon">${icon}</div>
+              <div class="grid-card-name">${highlightMatch(item.name, query)}</div>
+              <div class="grid-card-sub">${escapeHtml(sub)}</div>
+            </div>
+          `;
+        }
+        el.gridView.innerHTML = html;
+      }
+
+      // Actions
+      function openItem(item) {
+        if (!item || !item.path) return;
+        sendToHost('PEEKIT_OPEN_FILE', { path: item.path });
+      }
+
+      function revealItem(item) {
+        if (!item || !item.path) return;
+        sendToHost('PEEKIT_REVEAL_FILE', { path: item.path });
+      }
+
+      function updateSelection(index) {
+        if (filteredItems.length === 0) return;
+        selectedIndex = Math.max(0, Math.min(index, filteredItems.length - 1));
+
+        // Update active class
+        const currentSelected = document.querySelectorAll('.selected');
+        currentSelected.forEach(e => e.classList.remove('selected'));
+
+        const targetEl = currentView === 'table' 
+          ? el.tableBody.querySelector(`tr[data-index="${selectedIndex}"]`)
+          : el.gridView.querySelector(`.grid-card[data-index="${selectedIndex}"]`);
+
+        if (targetEl) {
+          targetEl.classList.add('selected');
+          targetEl.scrollIntoView({ block: 'nearest' });
+        }
+      }
+
+      // Event Listeners: Search
+      el.searchInput.addEventListener('input', () => {
+        applyFilterAndSort();
+      });
+
+      el.searchClearBtn.addEventListener('click', () => {
+        el.searchInput.value = '';
+        applyFilterAndSort();
+        el.searchInput.focus();
+      });
+
+      // Sorting
+      function setupSort(headerEl, field) {
+        headerEl.addEventListener('click', () => {
+          if (sortField === field) {
+            sortAsc = !sortAsc;
+          } else {
+            sortField = field;
+            sortAsc = true;
+          }
+
+          // Update header indicators
+          [el.thName, el.thType, el.thSize, el.thDate].forEach(th => {
+            th.classList.remove('sorted');
+            const icon = th.querySelector('.sort-icon');
+            if (icon) icon.textContent = '';
+          });
+
+          headerEl.classList.add('sorted');
+          const curIcon = headerEl.querySelector('.sort-icon');
+          if (curIcon) curIcon.textContent = sortAsc ? '▲' : '▼';
+
+          applyFilterAndSort();
+        });
+      }
+
+      setupSort(el.thName, 'name');
+      setupSort(el.thType, 'type');
+      setupSort(el.thSize, 'size');
+      setupSort(el.thDate, 'date');
+
+      // View Switcher
+      el.btnViewTable.addEventListener('click', () => {
+        currentView = 'table';
+        el.btnViewTable.classList.add('active');
+        el.btnViewGrid.classList.remove('active');
+        renderItems((el.searchInput.value || '').trim());
+      });
+
+      el.btnViewGrid.addEventListener('click', () => {
+        currentView = 'grid';
+        el.btnViewGrid.classList.add('active');
+        el.btnViewTable.classList.remove('active');
+        renderItems((el.searchInput.value || '').trim());
+      });
+
+      // Table & Grid Item Interactions
+      function handleItemClick(target, isDblClick) {
+        const row = target.closest('[data-index]');
+        if (!row) return;
+        const index = parseInt(row.getAttribute('data-index'), 10);
+        if (isNaN(index) || !filteredItems[index]) return;
+
+        updateSelection(index);
+
+        if (target.closest('.btn-open')) {
+          openItem(filteredItems[index]);
+        } else if (target.closest('.btn-reveal')) {
+          revealItem(filteredItems[index]);
+        } else if (isDblClick) {
+          openItem(filteredItems[index]);
+        }
+      }
+
+      el.tableBody.addEventListener('click', (e) => handleItemClick(e.target, false));
+      el.tableBody.addEventListener('dblclick', (e) => handleItemClick(e.target, true));
+
+      el.gridView.addEventListener('click', (e) => handleItemClick(e.target, false));
+      el.gridView.addEventListener('dblclick', (e) => handleItemClick(e.target, true));
+
+      // Header Folder Buttons
+      el.btnRevealFolder.addEventListener('click', () => {
+        if (currentFolder?.filePath) {
+          sendToHost('PEEKIT_REVEAL_FILE', { path: currentFolder.filePath });
+        }
+      });
+
+      el.btnOpenExplorer.addEventListener('click', () => {
+        if (currentFolder?.filePath) {
+          sendToHost('PEEKIT_REVEAL_FILE', { path: currentFolder.filePath });
+        }
+      });
+
+      el.folderPath.addEventListener('click', async () => {
+        if (currentFolder?.filePath) {
+          try {
+            await navigator.clipboard.writeText(currentFolder.filePath);
+            const original = el.folderPathText.textContent;
+            el.folderPathText.textContent = t('copiedPath');
+            setTimeout(() => {
+              el.folderPathText.textContent = original;
+            }, 1800);
+          } catch (e) {}
+        }
+      });
+
+      // Keyboard Shortcuts
+      window.addEventListener('keydown', (e) => {
+        const isSearchFocused = document.activeElement === el.searchInput;
+
+        if (e.key === '/' && !isSearchFocused) {
+          e.preventDefault();
+          el.searchInput.focus();
+          el.searchInput.select();
+          return;
+        }
+
+        if (e.key === 'Escape') {
+          if (el.searchInput.value) {
+            e.preventDefault();
+            el.searchInput.value = '';
+            applyFilterAndSort();
+          } else if (isSearchFocused) {
+            el.searchInput.blur();
+          }
+          return;
+        }
+
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          updateSelection(selectedIndex + 1);
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          updateSelection(selectedIndex - 1);
+        } else if (e.key === 'Enter') {
+          if (selectedIndex >= 0 && filteredItems[selectedIndex]) {
+            e.preventDefault();
+            openItem(filteredItems[selectedIndex]);
+          }
+        }
+      });
+
+    })();
+  </script>
+</body>
+</html>

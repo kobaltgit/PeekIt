@@ -77,6 +77,18 @@ export const translations = {
     github_link: 'Репозиторий проекта на GitHub',
     website_link: 'Официальный сайт Peekit',
     plugins_repo_link: 'Каталог плагинов PeekIt',
+
+    // Updates
+    check_updates: 'Проверить обновления',
+    checking_updates: 'Проверка...',
+    updates_latest: 'У вас установлена последняя версия',
+    updates_available: 'Доступно обновление',
+    download_setup: 'Скачать установщик (.exe)',
+    download_portable: 'Скачать Portable (.zip)',
+    view_release_notes: 'Список изменений →',
+    auto_check_updates: 'Автоматически проверять обновления',
+    auto_check_updates_desc: 'Фоновая проверка раз в неделю при запуске',
+    update_error: 'Не удалось проверить обновления',
     // Plugins
     plugins_tab: 'Плагины',
     plugins_desc: 'Установленные веб-плагины для расширения форматов файлов',
@@ -178,6 +190,18 @@ export const translations = {
     github_link: 'Project GitHub Repository',
     website_link: 'Official Peekit Website',
     plugins_repo_link: 'PeekIt Plugins Catalog',
+
+    // Updates
+    check_updates: 'Check for updates',
+    checking_updates: 'Checking...',
+    updates_latest: 'You have the latest version',
+    updates_available: 'Update available',
+    download_setup: 'Download Setup (.exe)',
+    download_portable: 'Download Portable (.zip)',
+    view_release_notes: 'Release Notes →',
+    auto_check_updates: 'Check for updates automatically',
+    auto_check_updates_desc: 'Weekly background check on app startup',
+    update_error: 'Failed to check for updates',
 
     // Plugins
     plugins_tab: 'Plugins',

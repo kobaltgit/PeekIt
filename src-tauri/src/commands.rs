@@ -88,7 +88,10 @@ pub fn get_app_config() -> Result<serde_json::Value, String> {
             "closeOnFocusLoss": false,
             "autoplayMedia": true,
             "volume": 0.8,
-            "stayOnTop": false
+            "stayOnTop": false,
+            "auto_check_updates": true,
+            "last_update_check_time": 0,
+            "last_notified_version": ""
         });
         if let (Some(val_obj), Some(def_obj)) = (val.as_object_mut(), defaults.as_object()) {
             for (k, v) in def_obj {
@@ -106,7 +109,10 @@ pub fn get_app_config() -> Result<serde_json::Value, String> {
             "closeOnFocusLoss": false,
             "autoplayMedia": true,
             "volume": 0.8,
-            "stayOnTop": false
+            "stayOnTop": false,
+            "auto_check_updates": true,
+            "last_update_check_time": 0,
+            "last_notified_version": ""
         }))
     }
 }
@@ -257,5 +263,13 @@ pub fn uninstall_plugin(id: String) -> Result<(), String> {
     crate::plugins::scanner::uninstall_plugin(&id)
 }
 
+#[tauri::command]
+pub fn read_folder_entries(path: String) -> Result<Vec<crate::preview::FolderItem>, String> {
+    crate::preview::read_folder_entries(&path)
+}
 
+#[tauri::command]
+pub fn check_for_updates(app: AppHandle, force: bool) -> Result<crate::updater::UpdateCheckResult, String> {
+    crate::updater::check_updates_with_cooldown(&app, force)
+}
 
