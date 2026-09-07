@@ -12,6 +12,8 @@
 | **[FEAT-002](#feat-002)** | System / UX | Система проверки и уведомления об обновлениях (Updater в стиле MiniBin) | Medium | Completed | v1.3.0 | [features/updater_plan.md](file:///d:/Projects/active/PeekIt/features/updater_plan.md) |
 | **[FEAT-003](#feat-003)** | Core / Plugins | Приоритет установленных плагинов над встроенными вьюерами (Plugin Precedence) | High | Completed | v1.3.1 | [features/plugin_precedence_plan.md](file:///d:/Projects/active/PeekIt/features/plugin_precedence_plan.md) |
 | **[FEAT-004](#feat-004)** | Core / Plugins | Системный диалог «Сохранить как...» для плагинов (Plugin Save Dialog API) | Medium | Completed | v1.3.1 | [features/worklog.md](file:///d:/Projects/active/PeekIt/features/worklog.md) |
+| **[FEAT-005](#feat-005)** | UI / Window | Перетаскивание окна и разворачивание на весь экран с визуальными значками | High | Completed | v1.3.2 | [features/v1.3.2_window_and_exit_plan.md](file:///d:/Projects/active/PeekIt/features/v1.3.2_window_and_exit_plan.md) |
+| **[FEAT-006](#feat-006)** | Core / System | Запрет запуска нескольких копий приложения (Single Instance Mutex) | High | Completed | v1.3.2 | [features/v1.3.2_window_and_exit_plan.md](file:///d:/Projects/active/PeekIt/features/v1.3.2_window_and_exit_plan.md) |
 
 ---
 
@@ -80,6 +82,37 @@
 
 ---
 
+### <a id="feat-005"></a>FEAT-005: Перетаскивание окна и разворачивание на весь экран с визуальными значками
+* **Цель:** Обеспечить удобное управление окном предпросмотра PeekIt:
+  1. Чётко выраженный значок и область для перетаскивания окна (Drag Handle).
+  2. Значок и функция разворачивания окна на весь экран / максимизации (Maximize / Restore) с переключением значков.
+  3. Возможность максимизации по двойному клику на заголовок окна (стандартный Windows UX).
+* **Архитектурные изменения:**
+  * **Бэкенд Rust (`commands.rs`, `lib.rs`):**
+    - Команда `start_drag_window` (вызов `window.start_dragging()`).
+    - Команда `toggle_maximize_window` (вызов `window.maximize()` / `window.unmaximize()`).
+    - Команда `is_window_maximized` (возврат статуса `window.is_maximized()`).
+  * **Фронтенд Svelte (`+page.svelte`):**
+    - Добавление в заголовок `header.topbar` визуального значка перетаскивания (шеститочечный grip `⋮⋮`) с `cursor: grab`, `data-tauri-drag-region` и вызовом `start_drag_window`.
+    - Добавление в `.actions-toolbar` значка максимизации/восстановления (`🗖` / `🗗`) с вызовом `toggleMaximize()`.
+    - Обработка `resize` для синхронизации иконки при изменении геометрии окна.
+  * **Локализация (`i18n.ts`):**
+    - Ключи `maximize`, `restore`, `drag_window` для русской и английской локализаций.
+* **Статус:** **Completed** (Реализовано, протестировано и выпущено в v1.3.2).
+
+---
+
+### <a id="feat-006"></a>FEAT-006: Запрет запуска нескольких копий приложения (Single Instance Mutex)
+* **Цель:** Исключить одновременный запуск нескольких копий PeekIt в операционной системе Windows. Повторные запуски засоряют системный трей, конфликтуют за глобальный хук клавиатуры (`WH_KEYBOARD_LL`) и потребляют память.
+* **Архитектурные изменения:**
+  * **Бэкенд Rust (`src-tauri/src/main.rs`):**
+    - В начале функции `main()` выполняется проверка именованного системного мьютекса `Local\PeekIt_SingleInstance_Mutex` через Windows API `CreateMutexW`.
+    - Если `GetLastError() == ERROR_ALREADY_EXISTS`, новая копия регистрирует факт в лог и немедленно завершает процесс через `std::process::exit(0)`.
+    - Мьютекс удерживается первичным процессом до его завершения (Windows гарантирует автоматическое освобождение).
+* **Статус:** **Completed** (Реализовано, проверено компиляцией и выпущено в v1.3.2).
+
+---
+
 ## 3. Хронология работы над функционалом (Timeline)
 
 | Дата | Фича | Действие |
@@ -91,6 +124,8 @@
 | **2026-09-07** | **FEAT-003** | Проектирование архитектуры приоритета плагинов над встроенными вьюерами (Plugin Precedence). Создан план [`features/plugin_precedence_plan.md`](file:///d:/Projects/active/PeekIt/features/plugin_precedence_plan.md). |
 | **2026-09-07** | **FEAT-003** | Реализован наивысший приоритет плагинов в `+page.svelte`. Выполнен инкремент версии до 1.3.1. Успешно собраны дистрибутивы `output/` (Setup, MSI, Portable ZIP). Статус → **Completed**. |
 | **2026-09-07** | **FEAT-004** | Реализован API диалога сохранения `PEEKIT_SAVE_FILE` в Rust и Svelte, обновлена версия в окне «О программе», успешно пересобраны все дистрибутивы v1.3.1. Статус → **Completed**. |
+| **2026-09-07** | **FEAT-005 / FEAT-006** | Реализованы значки окна (перетаскивание, максимизация/восстановление) и мьютекс Single Instance. Проект собран и упакован в v1.3.2. Статус → **Completed**. |
+
 
 
 

@@ -11,6 +11,7 @@
 | **[BUG-001](#bug-001)** | Bug | Залипание спиннера на вкладке «Плагины» в настройках | High | Resolved | v1.3.0 | [v1.3.0_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md) |
 | **[BUG-002](#bug-002)** | Bug | Кнопка «Установить» не меняется на «Установлено» без перезапуска | Medium | Resolved | v1.3.0 | [v1.3.0_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md) |
 | **[BUG-003](#bug-003)** | Bug | Фильтрация по категориям в магазине плагинов не работает (mismatch ключей) | Medium | Resolved | v1.3.0 | — |
+| **[BUG-004](#bug-004)** | Bug | Не работает пункт «Выход» в системном трей-меню программы | High | Resolved | v1.3.2 | [v1.3.2_window_and_exit_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.2_window_and_exit_plan.md) |
 | **[FEAT-001](#feat-001)** | Feature | Поддержка плагинов для просмотра содержимого папок | Feature | Resolved | v1.3.0 | [v1.3.0_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md) |
 | **[REL-001](#rel-001)** | Release | Подготовка и локальная сборка версии 1.3.0 (exe, msi, portable) | Task | Resolved | v1.3.0 | [v1.3.0_plan.md](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md) |
 
@@ -104,6 +105,18 @@
 
 ---
 
+### <a id="bug-004"></a>BUG-004: Не работает пункт «Выход» в меню программы
+* **Симптомы:** При нажатии на пункт «Выход» в контекстном меню системного трея приложение PeekIt не завершает работу и остаётся активным в памяти.
+* **Причина (Root Cause):**
+  В файле [`src-tauri/src/lib.rs`](file:///d:/Projects/active/PeekIt/src-tauri/src/lib.rs) (строка 175) в глобальном обработчике событий `.run(|_app_handle, event| ...)` перехватывалось событие `tauri::RunEvent::ExitRequested` и вызывалось `api.prevent_exit()`.
+  Когда пользователь кликал на пункт «Выход» в трей-меню, вызывался `app.exit(0)`. Однако Tauri генерировал `ExitRequested`, который слепо блокировался вызовом `api.prevent_exit()`. В итоге приложение не могло закрыться никогда.
+* **Решение:**
+  В обработчике пункта меню `"quit"` восстановлен прямой системный вызов `std::process::exit(0);`, гарантированно завершающий процесс приложения в Windows без перехвата со стороны Tauri run loop.
+* **Ссылка на план:** [`bugs/v1.3.2_window_and_exit_plan.md`](file:///d:/Projects/active/PeekIt/bugs/v1.3.2_window_and_exit_plan.md).
+* **Статус:** **Resolved** (Исправлено в коде, протестировано, выпущено в релизе v1.3.2).
+
+---
+
 ## 3. Хронология работы (Timeline)
 
 | Дата | Событие / Действие |
@@ -115,11 +128,14 @@
 | **2026-09-07** | **Реализация:** Исправлена реактивность в `PluginsTab.svelte` и `plugins.svelte.ts`, реализовано чтение папок в Rust (`preview.rs`, `commands.rs`), создан плагин `Folder Viewer`. |
 | **2026-09-07** | **Сборка релиза:** Выполнена сборка `npm run tauri build`, упакованы Setup EXE, MSI и Portable ZIP в папку `output/`, рассчитаны SHA-256 хэши, сформирован `RELEASE_NOTES_v1.3.0.md`. Задачи закрыты. |
 | **2026-09-07** | **Исправление BUG-003:** Устранен рассинхрон ключей категорий (`registry.json` vs `PluginsTab.svelte`). Добавлены категории `Presentations` и `Utilities`. Проект пересобран в v1.3.0 (Setup, MSI, Portable). Верифицировано пользователем. Баг закрыт. |
+| **2026-09-07** | **Исправление BUG-004:** Устранена блокировка выхода через трей-меню (`std::process::exit(0)`). Проект собран в составе v1.3.2. Баг закрыт. |
 
 ---
 
 ## 4. Ссылки на связанные документы и артефакты
 
 * 📋 **Локальный план v1.3.0:** [`bugs/v1.3.0_plan.md`](file:///d:/Projects/active/PeekIt/bugs/v1.3.0_plan.md)
-* 🧠 **Системный артефакт IDE:** [`implementation_plan.md`](file:///C:/Users/Kobalt/.gemini/antigravity-ide/brain/5ab4bf08-76d5-43d0-8482-3b23ee4229c7/implementation_plan.md)
-* 📦 **Релизные заметки предыдущей версии:** [`RELEASE_NOTES_v1.2.0.md`](file:///d:/Projects/active/PeekIt/RELEASE_NOTES_v1.2.0.md)
+* 📋 **Локальный план v1.3.2:** [`bugs/v1.3.2_window_and_exit_plan.md`](file:///d:/Projects/active/PeekIt/bugs/v1.3.2_window_and_exit_plan.md)
+* 📦 **Релизные заметки v1.3.2:** [`RELEASE_NOTES_v1.3.2.md`](file:///d:/Projects/active/PeekIt/RELEASE_NOTES_v1.3.2.md)
+* 📦 **Релизные заметки v1.3.1:** [`RELEASE_NOTES_v1.3.1.md`](file:///d:/Projects/active/PeekIt/RELEASE_NOTES_v1.3.1.md)
+* 📦 **Релизные заметки v1.3.0:** [`RELEASE_NOTES_v1.3.0.md`](file:///d:/Projects/active/PeekIt/RELEASE_NOTES_v1.3.0.md)

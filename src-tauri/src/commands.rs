@@ -306,4 +306,34 @@ pub async fn save_file_dialog_for_plugin(
     }
 }
 
+#[tauri::command]
+pub fn start_drag_window(window: tauri::WebviewWindow) -> Result<(), String> {
+    window.start_dragging().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_maximize_window(app: AppHandle) -> Result<bool, String> {
+    if let Some(window) = app.get_webview_window("main") {
+        let is_max = window.is_maximized().map_err(|e| e.to_string())?;
+        if is_max {
+            window.unmaximize().map_err(|e| e.to_string())?;
+            Ok(false)
+        } else {
+            window.maximize().map_err(|e| e.to_string())?;
+            Ok(true)
+        }
+    } else {
+        Err("Main window not found".into())
+    }
+}
+
+#[tauri::command]
+pub fn is_window_maximized(app: AppHandle) -> Result<bool, String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.is_maximized().map_err(|e| e.to_string())
+    } else {
+        Ok(false)
+    }
+}
+
 

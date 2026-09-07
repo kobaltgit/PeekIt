@@ -67,6 +67,9 @@ pub fn run() {
             commands::read_folder_entries,
             commands::check_for_updates,
             commands::save_file_dialog_for_plugin,
+            commands::start_drag_window,
+            commands::toggle_maximize_window,
+            commands::is_window_maximized,
         ])
         .setup(|app| {
             crate::log_debug("setup starting");
@@ -137,8 +140,8 @@ pub fn run() {
                             open_dialog_tab(app, serde_json::json!({ "tab": "about" }));
                         }
                         "quit" => {
-                            crate::log_debug("Quit clicked -> exiting");
-                            app.exit(0);
+                            crate::log_debug("Quit clicked -> exiting process");
+                            std::process::exit(0);
                         }
                         _ => {}
                     }

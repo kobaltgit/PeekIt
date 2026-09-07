@@ -22,6 +22,7 @@
   let activePlugin: PluginInfo | undefined = undefined;
   let textContent = '';
   let isPinned = false;
+  let isMaximized = false;
   let isSettingsOpen = false;
   let settingsInitialTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
   let settingsInitialSubtab: 'installed' | 'store' = 'installed';
@@ -107,6 +108,26 @@
   async function togglePin() {
     isPinned = !isPinned;
     await invokeTauri('toggle_pin_window', { pin: isPinned });
+  }
+
+  async function toggleMaximize() {
+    const res = await invokeTauri('toggle_maximize_window');
+    if (res !== null && typeof res === 'boolean') {
+      isMaximized = res;
+    }
+  }
+
+  async function checkMaximizeState() {
+    const res = await invokeTauri('is_window_maximized');
+    if (res !== null && typeof res === 'boolean') {
+      isMaximized = res;
+    }
+  }
+
+  async function handleDragMouseDown(e: MouseEvent) {
+    if (e.button === 0) {
+      await invokeTauri('start_drag_window');
+    }
   }
 
   async function closeWindow() {
@@ -197,6 +218,8 @@
   onMount(async () => {
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('blur', handleWindowBlur);
+    window.addEventListener('resize', checkMaximizeState);
+    checkMaximizeState();
 
     // Initial config load
     const savedConfig = await invokeTauri('get_app_config');
@@ -284,6 +307,7 @@
     if (typeof window !== 'undefined') {
       window.removeEventListener('keydown', handleKeydown);
       window.removeEventListener('blur', handleWindowBlur);
+      window.removeEventListener('resize', checkMaximizeState);
     }
     if (unlistenPreview) unlistenPreview();
     if (unlistenGroup) unlistenGroup();
@@ -296,6 +320,25 @@
   <!-- Window Top Bar (Fluent Custom Titlebar) -->
   <header class="topbar" data-tauri-drag-region>
     <div class="file-title-group">
+      <div
+        class="drag-handle"
+        data-tauri-drag-region
+        on:mousedown={handleDragMouseDown}
+        title={t('drag_window', settings.language)}
+        role="button"
+        tabindex="-1"
+        aria-label={t('drag_window', settings.language)}
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <circle cx="9" cy="6" r="1.5" />
+          <circle cx="15" cy="6" r="1.5" />
+          <circle cx="9" cy="12" r="1.5" />
+          <circle cx="15" cy="12" r="1.5" />
+          <circle cx="9" cy="18" r="1.5" />
+          <circle cx="15" cy="18" r="1.5" />
+        </svg>
+      </div>
+
       <div class="app-icon">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="10" />
@@ -364,6 +407,24 @@
           </svg>
         </button>
       {/if}
+
+      <button
+        class="action-btn icon-only"
+        on:click={toggleMaximize}
+        title={isMaximized ? t('restore', settings.language) : t('maximize', settings.language)}
+        aria-label={isMaximized ? t('restore', settings.language) : t('maximize', settings.language)}
+      >
+        {#if isMaximized}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="8" y="4" width="12" height="12" rx="1.5" />
+            <path d="M4 8v12a1.5 1.5 0 0 0 1.5 1.5H16" />
+          </svg>
+        {:else}
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="4" y="4" width="16" height="16" rx="2" />
+          </svg>
+        {/if}
+      </button>
 
       <button class="action-btn icon-only" on:click={() => { settingsInitialTab = 'general'; settingsInitialSubtab = 'installed'; isSettingsOpen = true; }} title={t('settings', settings.language)}>
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
@@ -487,6 +548,31 @@
     gap: 12px;
     min-width: 0;
     user-select: none;
+  }
+
+  .drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 28px;
+    cursor: grab;
+    color: var(--text-muted);
+    opacity: 0.55;
+    transition: opacity 0.15s ease, color 0.15s ease, transform 0.1s ease;
+    user-select: none;
+    -webkit-app-region: drag;
+    margin-right: -4px;
+  }
+
+  .drag-handle:hover {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+    transform: scale(0.95);
   }
 
   .app-icon {

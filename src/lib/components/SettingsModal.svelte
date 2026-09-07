@@ -188,7 +188,7 @@
           <PluginsTab lang={localSettings.language} initialSubtab={initialSubtab} />
         {:else if activeTab === 'about'}
           <div class="about-section">
-            <h3>Peekit v1.3.1</h3>
+            <h3>Peekit v1.3.2</h3>
             <p class="about-desc">{t('app_subtitle', localSettings.language)}</p>
             <p class="about-tech">Rust (Win32 COM) + Tauri v2 + Svelte 5</p>
             <p class="about-author">{t('author', localSettings.language)}</p>
@@ -208,7 +208,7 @@
                     <span class="status-msg up-to-date-text">{t('updates_latest', localSettings.language)}</span>
                   {:else}
                     <span class="status-dot idle"></span>
-                    <span class="status-msg">{t('version', localSettings.language)} 1.3.1</span>
+                    <span class="status-msg">{t('version', localSettings.language)} 1.3.2</span>
                   {/if}
                 </div>
 
