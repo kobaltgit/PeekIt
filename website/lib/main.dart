@@ -90,6 +90,8 @@ class _PeekitAppState extends State<PeekitApp> {
               version: 'v1.0.0',
               isRussian: _lang == 'ru',
               onLanguageToggle: () => setState(() => _lang = _lang == 'ru' ? 'en' : 'ru'),
+              isDark: _isDark,
+              onThemeToggle: () => setState(() => _isDark = !_isDark),
               accentColor: AppTheme.primary,
               navLinks: [
                 KobaltNavLink(
@@ -118,17 +120,6 @@ class _PeekitAppState extends State<PeekitApp> {
                 ),
               ],
               onDownloadTap: () => _scrollToSection('download'),
-              extraActions: [
-                IconButton(
-                  icon: Icon(
-                    _isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
-                    size: 18,
-                    color: _isDark ? AppTheme.darkTextMuted : AppTheme.lightTextMuted,
-                  ),
-                  onPressed: () => setState(() => _isDark = !_isDark),
-                  tooltip: _lang == 'ru' ? 'Переключить тему' : 'Toggle theme',
-                ),
-              ],
             ),
             Expanded(
               child: SingleChildScrollView(

@@ -173,7 +173,7 @@ packages:
     description:
       path: "."
       ref: main
-      resolved-ref: "6e3ebfb39ee671ff10c316435cf3c0e8063e24fb"
+      resolved-ref: "726625bca59e3a52fabf10c0a06c5b15fab62ed5"
       url: "https://github.com/kobaltgit/kobalt_ui.git"
     source: git
     version: "0.1.0"
