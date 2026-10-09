@@ -20,8 +20,8 @@
     "prismjs": "^1.30.0"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.6",
-    "@sveltejs/kit": "^2.9.0",
+    "@sveltejs/adapter-static": "^4.0.0",
+    "@sveltejs/kit": "^3.0.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tauri-apps/cli": "^2",
     "@types/prismjs": "^1.26.6",
