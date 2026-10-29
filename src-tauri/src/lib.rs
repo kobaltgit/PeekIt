@@ -35,6 +35,50 @@ pub fn log_debug(msg: &str) {
     }
 }
 
+fn read_config_language() -> String {
+    crate::commands::get_app_config()
+        .ok()
+        .and_then(|c| c.get("language").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .unwrap_or_else(|| "ru".to_string())
+}
+
+fn tray_labels(lang: &str) -> (String, String, String, String) {
+    match lang {
+        "en" => ("Plugin Store".into(), "Settings".into(), "About".into(), "Quit".into()),
+        "zh" => ("插件商店".into(), "设置".into(), "关于".into(), "退出".into()),
+        _ => ("Магазин плагинов (Store)".into(), "Параметры (Settings)".into(), "О программе (About)".into(), "Выход (Quit)".into()),
+    }
+}
+
+/// Builds the tray menu with localized labels.
+fn build_tray_menu(app: &tauri::AppHandle) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
+    let lang = read_config_language();
+    let (label_store, label_settings, label_about, label_quit) = tray_labels(&lang);
+    let title_str = format!("Peekit v{}", env!("CARGO_PKG_VERSION"));
+    let title_i = MenuItem::with_id(app, "title", &title_str, false, None::<&str>)?;
+    let sep1 = PredefinedMenuItem::separator(app)?;
+    let marketplace_i = MenuItem::with_id(app, "marketplace", &label_store, true, None::<&str>)?;
+    let settings_i = MenuItem::with_id(app, "settings", &label_settings, true, None::<&str>)?;
+    let about_i = MenuItem::with_id(app, "about", &label_about, true, None::<&str>)?;
+    let sep2 = PredefinedMenuItem::separator(app)?;
+    let quit_i = MenuItem::with_id(app, "quit", &label_quit, true, None::<&str>)?;
+    Menu::with_items(app, &[&title_i, &sep1, &marketplace_i, &settings_i, &about_i, &sep2, &quit_i])
+}
+
+/// Re-applies the tray menu labels after the user changes the UI language
+/// (called from save_app_config; no restart needed anymore).
+pub fn apply_tray_language(app: &tauri::AppHandle) {
+    if let Some(tray) = app.tray_by_id("peekit-tray") {
+        match build_tray_menu(app) {
+            Ok(menu) => {
+                let _ = tray.set_menu(Some(menu));
+                crate::log_debug("Tray menu language updated");
+            }
+            Err(e) => crate::log_debug(&format!("apply_tray_language failed: {:?}", e)),
+        }
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -71,7 +115,7 @@ pub fn run() {
             commands::toggle_maximize_window,
             commands::is_window_maximized,
         ])
-        .setup(|app| {
+        .setup(move |app| {
             crate::log_debug("setup starting");
 
             // Check command line arguments for .pkit files (double-click from Windows Explorer)
@@ -100,15 +144,7 @@ pub fn run() {
             };
 
             // Setup System Tray
-            let title_str = format!("Peekit v{}", env!("CARGO_PKG_VERSION"));
-            let title_i = MenuItem::with_id(app, "title", &title_str, false, None::<&str>)?;
-            let sep1 = PredefinedMenuItem::separator(app)?;
-            let marketplace_i = MenuItem::with_id(app, "marketplace", "Магазин плагинов (Store)", true, None::<&str>)?;
-            let settings_i = MenuItem::with_id(app, "settings", "Параметры (Settings)", true, None::<&str>)?;
-            let about_i = MenuItem::with_id(app, "about", "О программе (About)", true, None::<&str>)?;
-            let sep2 = PredefinedMenuItem::separator(app)?;
-            let quit_i = MenuItem::with_id(app, "quit", "Выход (Quit)", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&title_i, &sep1, &marketplace_i, &settings_i, &about_i, &sep2, &quit_i])?;
+            let menu = build_tray_menu(app.handle())?;
 
             let open_dialog_tab = |app: &tauri::AppHandle, payload: serde_json::Value| {
                 if let Some(window) = app.get_webview_window("main") {
@@ -120,7 +156,7 @@ pub fn run() {
                 }
             };
 
-            let tray = TrayIconBuilder::new()
+            let tray = TrayIconBuilder::with_id("peekit-tray")
                 .icon(icon)
                 .menu(&menu)
                 .show_menu_on_left_click(false)

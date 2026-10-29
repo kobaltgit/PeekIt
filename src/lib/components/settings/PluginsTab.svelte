@@ -8,6 +8,10 @@
   export let lang: AppLanguage = 'ru';
   export let initialSubtab: 'installed' | 'store' = 'installed';
 
+  // Three-way inline localization helper for strings that are not in i18n.ts
+  const L = (ru: string, en: string, zh: string): string =>
+    lang === 'ru' ? ru : lang === 'zh' ? zh : en;
+
   let subtab: 'installed' | 'store' = initialSubtab;
   let prevInitialSubtab = initialSubtab;
 
@@ -167,7 +171,7 @@
       await pluginRegistry.uninstallPlugin(id);
       await refreshInstalled();
       confirmingUninstallId = null;
-      installMessage = lang === 'ru' ? `Плагин «${name}» удален` : `Plugin "${name}" uninstalled`;
+      installMessage = L(`Плагин «${name}» удален`, `Plugin "${name}" uninstalled`, `已卸载插件「${name}」`);
       setTimeout(() => { installMessage = ''; }, 4000);
     } catch (e: any) {
       installError = e?.message || e?.toString() || 'Ошибка удаления плагина';
@@ -180,24 +184,22 @@
     await refreshInstalled();
   }
 
-  function getPluginStatus(plugin: RegistryPlugin) {
-    const installed = installedPlugins.find(p => p.manifest.id === plugin.id);
-    if (!installed) {
-      return { isInstalled: false, hasUpdate: false, installedVersion: null };
-    }
-    const hasUpdate = installed.manifest.version !== plugin.version;
-    return { isInstalled: true, hasUpdate, installedVersion: installed.manifest.version };
-  }
+  // Reactive map so the store cards re-render as soon as the installed list
+  // changes (a plain helper function reading `installedPlugins` is invisible
+  // to Svelte's compiler and leaves stale Install/Update buttons behind).
+  $: installedVersionById = new Map(
+    (installedPlugins || []).map(p => [p.manifest.id, p.manifest.version] as const)
+  );
 
   const categories = [
-    { id: 'all', labelRu: 'Все', labelEn: 'All' },
-    { id: 'graphics', labelRu: 'Графика', labelEn: 'Graphics' },
-    { id: '3d', labelRu: '3D', labelEn: '3D' },
-    { id: 'documents', labelRu: 'Документы', labelEn: 'Documents' },
-    { id: 'fonts', labelRu: 'Шрифты', labelEn: 'Fonts' },
-    { id: 'spreadsheets', labelRu: 'Таблицы', labelEn: 'Sheets' },
-    { id: 'presentations', labelRu: 'Презентации', labelEn: 'Presentations' },
-    { id: 'utilities', labelRu: 'Утилиты', labelEn: 'Utilities' },
+    { id: 'all', labelRu: 'Все', labelEn: 'All', labelZh: '全部' },
+    { id: 'graphics', labelRu: 'Графика', labelEn: 'Graphics', labelZh: '图形' },
+    { id: '3d', labelRu: '3D', labelEn: '3D', labelZh: '3D' },
+    { id: 'documents', labelRu: 'Документы', labelEn: 'Documents', labelZh: '文档' },
+    { id: 'fonts', labelRu: 'Шрифты', labelEn: 'Fonts', labelZh: '字体' },
+    { id: 'spreadsheets', labelRu: 'Таблицы', labelEn: 'Sheets', labelZh: '表格' },
+    { id: 'presentations', labelRu: 'Презентации', labelEn: 'Presentations', labelZh: '演示文稿' },
+    { id: 'utilities', labelRu: 'Утилиты', labelEn: 'Utilities', labelZh: '实用工具' },
   ];
 
   function getEffectiveCategory(plugin: RegistryPlugin): string {
@@ -232,21 +234,21 @@
   function getCategoryLabel(category: string, currentLang: AppLanguage): string {
     switch (category) {
       case 'graphics':
-        return currentLang === 'ru' ? 'ГРАФИКА' : 'GRAPHICS';
+        return currentLang === 'ru' ? 'ГРАФИКА' : currentLang === 'zh' ? '图形' : 'GRAPHICS';
       case '3d':
         return '3D';
       case 'documents':
-        return currentLang === 'ru' ? 'ДОКУМЕНТЫ' : 'DOCS';
+        return currentLang === 'ru' ? 'ДОКУМЕНТЫ' : currentLang === 'zh' ? '文档' : 'DOCS';
       case 'fonts':
-        return currentLang === 'ru' ? 'ШРИФТЫ' : 'FONTS';
+        return currentLang === 'ru' ? 'ШРИФТЫ' : currentLang === 'zh' ? '字体' : 'FONTS';
       case 'spreadsheets':
-        return currentLang === 'ru' ? 'ТАБЛИЦЫ' : 'SHEETS';
+        return currentLang === 'ru' ? 'ТАБЛИЦЫ' : currentLang === 'zh' ? '表格' : 'SHEETS';
       case 'presentations':
-        return currentLang === 'ru' ? 'ПРЕЗЕНТАЦИИ' : 'SLIDES';
+        return currentLang === 'ru' ? 'ПРЕЗЕНТАЦИИ' : currentLang === 'zh' ? '幻灯片' : 'SLIDES';
       case 'utilities':
-        return currentLang === 'ru' ? 'УТИЛИТЫ' : 'UTILS';
+        return currentLang === 'ru' ? 'УТИЛИТЫ' : currentLang === 'zh' ? '工具' : 'UTILS';
       default:
-        return currentLang === 'ru' ? 'ПЛАГИН' : 'PLUGIN';
+        return currentLang === 'ru' ? 'ПЛАГИН' : currentLang === 'zh' ? '插件' : 'PLUGIN';
     }
   }
 
@@ -375,7 +377,7 @@
                 <polyline points="23 4 23 10 17 10" />
                 <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
               </svg>
-              <span>{lang === 'ru' ? 'Обновить' : 'Refresh'}</span>
+              <span>{L('Обновить', 'Refresh', '刷新')}</span>
             </button>
           </div>
         </div>
@@ -417,14 +419,14 @@
                       <button
                         class="btn-confirm-delete"
                         on:click={() => handleUninstallPlugin(plugin.manifest.id, plugin.manifest.name)}
-                        title={lang === 'ru' ? 'Подтвердить удаление' : 'Confirm delete'}
+                        title={L('Подтвердить удаление', 'Confirm delete', '确认删除')}
                       >
-                        {lang === 'ru' ? 'Удалить?' : 'Delete?'}
+                        {L('Удалить?', 'Delete?', '删除？')}
                       </button>
                       <button
                         class="btn-cancel-delete"
                         on:click={() => (confirmingUninstallId = null)}
-                        title={lang === 'ru' ? 'Отмена' : 'Cancel'}
+                        title={L('Отмена', 'Cancel', '取消')}
                       >
                         &times;
                       </button>
@@ -433,7 +435,7 @@
                     <button
                       class="btn-uninstall-plugin"
                       on:click={() => (confirmingUninstallId = plugin.manifest.id)}
-                      title={lang === 'ru' ? 'Удалить плагин' : 'Uninstall plugin'}
+                      title={L('Удалить плагин', 'Uninstall plugin', '卸载插件')}
                     >
                       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="3 6 5 6 21 6" />
@@ -442,7 +444,7 @@
                     </button>
                   {/if}
 
-                  <label class="switch" title={plugin.isEnabled ? (lang === 'ru' ? 'Отключить' : 'Disable') : (lang === 'ru' ? 'Включить' : 'Enable')}>
+                  <label class="switch" title={plugin.isEnabled ? L('Отключить', 'Disable', '禁用') : L('Включить', 'Enable', '启用')}>
                     <input
                       type="checkbox"
                       checked={plugin.isEnabled}
@@ -495,14 +497,14 @@
         </div>
 
         <div class="category-pills">
-          {#each categories as cat}
-            <button
-              class="cat-pill {selectedCategory === cat.id ? 'active' : ''}"
-              on:click={() => (selectedCategory = cat.id)}
-            >
-              {lang === 'ru' ? cat.labelRu : cat.labelEn}
-            </button>
-          {/each}
+            {#each categories as cat}
+              <button
+                class="cat-pill {selectedCategory === cat.id ? 'active' : ''}"
+                on:click={() => (selectedCategory = cat.id)}
+              >
+                {lang === 'ru' ? cat.labelRu : lang === 'zh' ? cat.labelZh : cat.labelEn}
+              </button>
+            {/each}
         </div>
       </div>
 
@@ -521,7 +523,7 @@
             </svg>
             <p>{catalogError}</p>
             <button class="action-btn primary" on:click={loadCatalog}>
-              <span>{lang === 'ru' ? 'Повторить попытку' : 'Retry'}</span>
+              <span>{L('Повторить попытку', 'Retry', '重试')}</span>
             </button>
           </div>
         {:else if filteredCatalog.length === 0}
@@ -532,7 +534,7 @@
         {:else}
           <div class="catalog-grid">
             {#each filteredCatalog as item (item.id)}
-              {@const status = getPluginStatus(item)}
+              {@const installedVersion = installedVersionById.get(item.id)}
               {@const effectiveCat = getEffectiveCategory(item)}
               {@const catStyle = getCategoryColor(effectiveCat)}
               <div class="catalog-card">
@@ -622,14 +624,14 @@
                         <div class="mini-spinner"></div>
                         <span>{t('store_installing', lang)}</span>
                       </button>
-                    {:else if status.isInstalled && !status.hasUpdate}
+                    {:else if installedVersion !== undefined && installedVersion === item.version}
                       <button class="store-btn installed" disabled>
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
                           <polyline points="20 6 9 17 4 12" />
                         </svg>
                         <span>{t('store_installed', lang)}</span>
                       </button>
-                    {:else if status.hasUpdate}
+                    {:else if installedVersion !== undefined}
                       <button class="store-btn update" on:click={() => handleInstallFromStore(item)}>
                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                           <polyline points="23 4 23 10 17 10" />

@@ -10,6 +10,7 @@ use windows::{
 
 static IS_SPACE_DOWN: AtomicBool = AtomicBool::new(false);
 static HOOK_ACTIVE: AtomicBool = AtomicBool::new(false);
+static WATCHER_ACTIVE: AtomicBool = AtomicBool::new(false);
 static CURRENT_PREVIEW_PATH: parking_lot::Mutex<Option<String>> = parking_lot::Mutex::new(None);
 #[cfg(windows)]
 static LAST_EXPLORER_HWND: parking_lot::Mutex<Option<isize>> = parking_lot::Mutex::new(None);
@@ -33,6 +34,115 @@ pub fn get_last_explorer_hwnd() -> Option<isize> {
     {
         None
     }
+}
+
+/// Shows (or refreshes) the preview for `selected_files` and focuses the window.
+#[cfg(windows)]
+fn show_preview(app: &AppHandle, window: &tauri::WebviewWindow, selected_files: Vec<String>) {
+    let path = selected_files[0].clone();
+    *CURRENT_PREVIEW_PATH.lock() = Some(path.clone());
+    crate::log_debug(&format!("Worker thread got {} files, active: {}", selected_files.len(), path));
+    let _ = app.emit("preview_file", &path);
+    let _ = app.emit("preview_group", serde_json::json!({
+        "files": selected_files,
+        "index": 0
+    }));
+    let _ = window.unminimize();
+    let show_res = window.show();
+    let focus_res = window.set_focus();
+    #[cfg(windows)]
+    if let Ok(hwnd) = window.hwnd() {
+        unsafe {
+            let _ = SetForegroundWindow(HWND(hwnd.0));
+        }
+    }
+    crate::log_debug(&format!("window.show: {:?}, set_focus: {:?}", show_res, focus_res));
+
+    ensure_preview_watcher(app.clone());
+}
+
+/// Raises the window in z-order without stealing keyboard focus
+/// (QuickLook-style: the preview floats up, the Explorer keeps focus).
+#[cfg(windows)]
+fn raise_without_activation(window: &tauri::WebviewWindow) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE};
+    if let Ok(hwnd) = window.hwnd() {
+        unsafe {
+            let _ = SetWindowPos(
+                HWND(hwnd.0),
+                HWND_TOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+            let _ = SetWindowPos(
+                HWND(hwnd.0),
+                HWND_NOTOPMOST,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE,
+            );
+        }
+    }
+}
+
+/// QuickLook-style live preview: while the preview window is open, watch the
+/// Explorer selection and refresh the preview automatically as soon as the
+/// user clicks another file — no Space press needed. The window is raised
+/// without activation, so the Explorer keeps keyboard focus.
+#[cfg(windows)]
+fn ensure_preview_watcher(app: AppHandle) {
+    if WATCHER_ACTIVE.swap(true, Ordering::SeqCst) {
+        return;
+    }
+
+    std::thread::spawn(move || {
+        crate::log_debug("Preview watcher started");
+        loop {
+            std::thread::sleep(std::time::Duration::from_millis(350));
+            let Some(window) = app.get_webview_window("main") else { break };
+            if !window.is_visible().unwrap_or(false) {
+                break;
+            }
+
+            // While the user is looking at the preview itself, nothing to follow.
+            let focused = window
+                .hwnd()
+                .map(|h| unsafe { h.0 == GetForegroundWindow().0 })
+                .unwrap_or(false);
+            if focused || !crate::explorer::is_explorer_or_desktop_active() {
+                continue;
+            }
+
+            let fg = unsafe { GetForegroundWindow() };
+            *LAST_EXPLORER_HWND.lock() = Some(fg.0 as isize);
+            let selected_files = crate::explorer::get_selected_file_paths_for(Some(fg.0 as isize));
+            let Some(path) = selected_files.first().cloned() else { continue };
+
+            let is_new = {
+                let cur = CURRENT_PREVIEW_PATH.lock();
+                cur.as_deref() != Some(path.as_str())
+            };
+            if !is_new {
+                continue;
+            }
+
+            crate::log_debug(&format!("[Watcher] Selection changed -> live preview: {}", path));
+            *CURRENT_PREVIEW_PATH.lock() = Some(path.clone());
+            let _ = app.emit("preview_file", &path);
+            let _ = app.emit("preview_group", serde_json::json!({
+                "files": selected_files,
+                "index": 0
+            }));
+            raise_without_activation(&window);
+        }
+        crate::log_debug("Preview watcher stopped");
+        WATCHER_ACTIVE.store(false, Ordering::SeqCst);
+    });
 }
 
 pub fn set_current_preview_path(path: &str) {
@@ -126,7 +236,6 @@ unsafe extern "system" fn low_level_keyboard_proc(
                             return CallNextHookEx(None, n_code, w_param, l_param);
                         }
 
-                        // If Peekit window is focused and visible, Space toggles/closes it
                         let fg_hwnd = GetForegroundWindow();
                         let is_peekit_focused = window.hwnd().map(|h| h.0 == fg_hwnd.0).unwrap_or(false);
 
@@ -135,14 +244,88 @@ unsafe extern "system" fn low_level_keyboard_proc(
                             is_visible, is_peekit_focused, fg_hwnd
                         ));
 
-                        if is_peekit_focused && is_visible {
-                            hide_and_reset(app, &window);
-                            return LRESULT(1); // Suppress Space
-                        }
-
                         // Check if Explorer or Desktop is active
                         let is_exp = crate::explorer::is_explorer_or_desktop_active();
                         crate::log_debug(&format!("is_explorer_or_desktop_active = {}", is_exp));
+
+                        if is_visible {
+                            // While the preview is open, Space belongs to Peekit:
+                            // it refreshes, re-opens or closes the window.
+                            if !is_exp && !is_peekit_focused {
+                                // Focus is in an unrelated app — let Space through untouched.
+                                return CallNextHookEx(None, n_code, w_param, l_param);
+                            }
+
+                            if is_exp {
+                                *LAST_EXPLORER_HWND.lock() = Some(fg_hwnd.0 as isize);
+
+                                // Check if user is typing text (renaming or search)
+                                let is_typing = crate::explorer::is_user_typing_text();
+                                crate::log_debug(&format!("is_user_typing_text = {}", is_typing));
+
+                                if is_typing {
+                                    return CallNextHookEx(None, n_code, w_param, l_param);
+                                }
+                            }
+
+                        // Remember which window owns the selection and query it on a
+                        // worker thread: the Explorer window that was active when Space
+                        // was pressed, or the last remembered one when Peekit itself
+                        // owns the foreground.
+                        let target_hwnd: Option<isize> = if is_exp {
+                            Some(fg_hwnd.0 as isize)
+                        } else {
+                            get_last_explorer_hwnd()
+                        };
+                        let app_clone = app.clone();
+                        let window_clone = window.clone();
+                        std::thread::spawn(move || {
+                            let selected_files = match target_hwnd {
+                                Some(hwnd) => crate::explorer::get_selected_file_paths_for(Some(hwnd)),
+                                None => Vec::new(),
+                            };
+                            let still_focused = window_clone
+                                .hwnd()
+                                .map(|h| unsafe { h.0 == GetForegroundWindow().0 })
+                                .unwrap_or(false);
+
+                                match selected_files.first() {
+                                    Some(path) => {
+                                        let path = path.clone();
+                                        let is_same_file = {
+                                            let cur = CURRENT_PREVIEW_PATH.lock();
+                                            if let Some(ref c) = *cur {
+                                                c == &path
+                                            } else {
+                                                false
+                                            }
+                                        };
+
+                                        // Same file -> toggle close! (documented Space
+                                        // behavior: open/close the preview)
+                                        if is_same_file {
+                                            crate::log_debug(&format!("Same file '{}' toggled off -> hiding window", path));
+                                            hide_and_reset(&app_clone, &window_clone);
+                                            return;
+                                        }
+
+                                        // Different file -> open/refresh preview!
+                                        show_preview(&app_clone, &window_clone, selected_files);
+                                    }
+                                    None => {
+                                        crate::log_debug("Worker thread: no file selected in Explorer");
+                                        // Only an explicit toggle on the focused window closes
+                                        // it; an empty or unstable selection must never yank
+                                        // the preview away (COM hiccups right after a click).
+                                        if still_focused && window_clone.is_visible().unwrap_or(false) {
+                                            hide_and_reset(&app_clone, &window_clone);
+                                        }
+                                    }
+                                }
+                            });
+
+                            return LRESULT(1); // Suppress Space while preview is open
+                        }
 
                         if is_exp {
                             *LAST_EXPLORER_HWND.lock() = Some(fg_hwnd.0 as isize);
@@ -156,53 +339,15 @@ unsafe extern "system" fn low_level_keyboard_proc(
                             }
 
                             // Query Explorer COM on worker thread
+                            let target_hwnd = fg_hwnd.0 as isize;
                             let app_clone = app.clone();
                             let window_clone = window.clone();
                             std::thread::spawn(move || {
-                                let selected_files = crate::explorer::get_selected_file_paths();
+                                let selected_files = crate::explorer::get_selected_file_paths_for(Some(target_hwnd));
                                 if !selected_files.is_empty() {
-                                    let path = selected_files[0].clone();
-                                    let is_same_file = {
-                                        let cur = CURRENT_PREVIEW_PATH.lock();
-                                        if let Some(ref c) = *cur {
-                                            c == &path
-                                        } else {
-                                            false
-                                        }
-                                    };
-
-                                    let is_vis = window_clone.is_visible().unwrap_or(false);
-
-                                    // If window is visible and user pressed Space on the SAME file -> toggle close!
-                                    if is_vis && is_same_file {
-                                        crate::log_debug(&format!("Same file '{}' toggled off -> hiding window", path));
-                                        hide_and_reset(&app_clone, &window_clone);
-                                        return;
-                                    }
-
-                                    // Otherwise, preview this file!
-                                    *CURRENT_PREVIEW_PATH.lock() = Some(path.clone());
-                                    crate::log_debug(&format!("Worker thread got {} files, active: {}", selected_files.len(), path));
-                                    let _ = app_clone.emit("preview_file", &path);
-                                    let _ = app_clone.emit("preview_group", serde_json::json!({
-                                        "files": selected_files,
-                                        "index": 0
-                                    }));
-                                    let _ = window_clone.unminimize();
-                                    let show_res = window_clone.show();
-                                    let focus_res = window_clone.set_focus();
-                                    #[cfg(windows)]
-                                    if let Ok(hwnd) = window_clone.hwnd() {
-                                        unsafe {
-                                            let _ = SetForegroundWindow(HWND(hwnd.0));
-                                        }
-                                    }
-                                    crate::log_debug(&format!("window.show: {:?}, set_focus: {:?}", show_res, focus_res));
+                                    show_preview(&app_clone, &window_clone, selected_files);
                                 } else {
                                     crate::log_debug("Worker thread: no file selected in Explorer");
-                                    if window_clone.is_visible().unwrap_or(false) {
-                                        hide_and_reset(&app_clone, &window_clone);
-                                    }
                                 }
                             });
 

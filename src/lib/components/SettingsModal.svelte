@@ -12,6 +12,7 @@
   export let isOpen: boolean = false;
   export let initialTab: 'general' | 'appearance' | 'plugins' | 'about' = 'general';
   export let initialSubtab: 'installed' | 'store' = 'installed';
+  export let saveFlash: boolean = false;
   export let onClose: () => void;
   export let onSave: (updated: AppSettings) => void;
 
@@ -71,9 +72,10 @@
     }
   }
 
-  function saveAndClose() {
+  // Save keeps the dialog open so the user can adjust other tabs;
+  // closing is done via the Close button, the header X or Escape.
+  function save() {
     onSave({ ...localSettings });
-    onClose();
   }
 </script>
 
@@ -128,6 +130,7 @@
             <select id="setting-language" bind:value={localSettings.language} class="setting-select">
               <option value="ru">Русский (RU)</option>
               <option value="en">English (EN)</option>
+              <option value="zh">简体中文 (ZH)</option>
             </select>
           </div>
 
@@ -305,8 +308,11 @@
       </div>
 
       <div class="modal-footer">
+        {#if saveFlash}
+          <span class="save-feedback">✓ {t('settings_saved', localSettings.language)}</span>
+        {/if}
         <button class="btn-cancel" on:click={onClose}>{t('close_settings', localSettings.language)}</button>
-        <button class="btn-save" on:click={saveAndClose}>{t('save', localSettings.language)}</button>
+        <button class="btn-save" on:click={save}>{t('save', localSettings.language)}</button>
       </div>
     </div>
   </div>
@@ -810,10 +816,18 @@
   .modal-footer {
     display: flex;
     justify-content: flex-end;
+    align-items: center;
     gap: 10px;
     padding: 14px 20px;
     background: var(--bg-subtle);
     border-top: 1px solid var(--border-color);
+  }
+
+  .save-feedback {
+    margin-right: auto;
+    font-size: 12px;
+    font-weight: 500;
+    color: #22c55e;
   }
 
   .btn-cancel, .btn-save {

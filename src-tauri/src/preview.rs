@@ -242,9 +242,22 @@ pub fn inspect_file(path_str: &str) -> Result<FilePreviewInfo, String> {
         .to_lowercase();
 
     let mut category = detect_category(&extension).to_string();
-    let mime_type = mime_guess::from_path(path)
+    let mut mime_type = mime_guess::from_path(path)
         .first_or_octet_stream()
         .to_string();
+
+    // Cloud placeholder state, needed before any content reads: sniffing a
+    // OneDrive/iCloud placeholder would trigger a full download.
+    #[cfg(windows)]
+    let is_cloud_placeholder = {
+        use std::os::windows::fs::MetadataExt;
+        let attrs = metadata.file_attributes();
+        // 0x00001000 = FILE_ATTRIBUTE_OFFLINE
+        // 0x00400000 = FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS
+        (attrs & 0x00001000 != 0) || (attrs & 0x00400000 != 0)
+    };
+    #[cfg(not(windows))]
+    let is_cloud_placeholder = false;
 
     if category == "generic" {
         let lower_name = file_name.to_lowercase();
@@ -267,6 +280,14 @@ pub fn inspect_file(path_str: &str) -> Result<FilePreviewInfo, String> {
         {
             category = "code".to_string();
         }
+    }
+
+    // Content sniffing as the last resort: dotfiles without an extension
+    // (.git/config, .ssh/known_hosts) and files with made-up extensions are
+    // often plain text even though the name/MIME gives no hint.
+    if category == "generic" && !is_cloud_placeholder && sniff_is_text(path) {
+        category = "text".to_string();
+        mime_type = "text/plain".to_string();
     }
 
     let modified = metadata
@@ -341,8 +362,75 @@ pub fn read_file_text_capped(path_str: &str, max_bytes: usize) -> Result<String,
     let mut take = file.take(max_bytes as u64);
     take.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
 
+    // BOM-aware decode: strip the UTF-8 BOM and decode UTF-16 files properly
+    // instead of rendering them as NUL-riddled mojibake.
+    if buffer.starts_with(&[0xEF, 0xBB, 0xBF]) {
+        return Ok(String::from_utf8_lossy(&buffer[3..]).to_string());
+    }
+    if buffer.starts_with(&[0xFF, 0xFE]) || buffer.starts_with(&[0xFE, 0xFF]) {
+        let little_endian = buffer[0] == 0xFF;
+        let units: Vec<u16> = buffer[2..]
+            .chunks_exact(2)
+            .map(|c| {
+                if little_endian {
+                    u16::from_le_bytes([c[0], c[1]])
+                } else {
+                    u16::from_be_bytes([c[0], c[1]])
+                }
+            })
+            .collect();
+        return Ok(String::from_utf16_lossy(&units));
+    }
+
     String::from_utf8(buffer)
         .or_else(|e| Ok(String::from_utf8_lossy(e.as_bytes()).to_string()))
+}
+
+/// Content sniffing: does the leading part of the file look like plain text?
+/// Last resort for files whose name/extension gives no hint (.git/config,
+/// .ssh/known_hosts, extensionless LICENSE, made-up extensions) so they
+/// preview as text instead of the generic info card. Mirrors git's heuristic
+/// (NUL byte => binary) plus a control-character ratio check.
+pub fn sniff_is_text(path: &Path) -> bool {
+    let mut file = match File::open(path) {
+        Ok(f) => f,
+        Err(_) => return false,
+    };
+    let mut buf = vec![0u8; 8192];
+    let n = match file.read(&mut buf) {
+        Ok(n) => n,
+        Err(_) => return false,
+    };
+    buf.truncate(n);
+
+    // Empty files preview fine as an empty text view.
+    if buf.is_empty() {
+        return true;
+    }
+
+    // Unicode BOMs unambiguously mark text content.
+    if buf.starts_with(&[0xEF, 0xBB, 0xBF])
+        || buf.starts_with(&[0xFF, 0xFE])
+        || buf.starts_with(&[0xFE, 0xFF])
+    {
+        return true;
+    }
+
+    // A NUL byte anywhere in the sample is git's binary heuristic — trust it.
+    if buf.contains(&0) {
+        return false;
+    }
+
+    // Control characters other than common whitespace/escape sequences.
+    let controls = buf
+        .iter()
+        .filter(|&&b| b < 0x20 && !matches!(b, b'\t' | b'\n' | b'\r' | 0x08 | 0x0C | 0x1B))
+        .count();
+    if controls * 20 > buf.len() {
+        return false;
+    }
+
+    true
 }
 
 pub fn extract_svg_dimensions(path: &Path) -> Option<FileDimensions> {
@@ -404,5 +492,104 @@ mod tests {
             assert_eq!(d.width, 512);
             assert_eq!(d.height, 512);
         }
+    }
+
+    fn temp_file(tag: &str, bytes: &[u8]) -> std::path::PathBuf {
+        let p = std::env::temp_dir().join(format!(
+            "peekit_test_{}_{}.txt",
+            tag,
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::write(&p, bytes).unwrap();
+        p
+    }
+
+    #[test]
+    fn test_sniff_real_git_config_is_text() {
+        // This repository's own .git/config — the user-reported scenario.
+        let path = Path::new("../.git/config");
+        if path.exists() {
+            assert!(sniff_is_text(path));
+            let info = inspect_file(path.to_str().unwrap()).unwrap();
+            assert_eq!(info.category, "text");
+            assert_eq!(info.mime_type, "text/plain");
+        }
+    }
+
+    #[test]
+    fn test_sniff_text_variants() {
+        let cases: Vec<(&str, Vec<u8>)> = vec![
+            ("empty", Vec::new()),
+            ("plain", b"KEY=value\nOTHER=1\n".to_vec()),
+            ("utf8_bom", [b"\xEF\xBB\xBF".as_slice(), b"hello"].concat()),
+            ("utf16le_bom", [b"\xFF\xFE".as_slice(), b"h\0i\0".as_slice()].concat()),
+            ("cp1251", // invalid UTF-8, but no NUL / few controls → legacy text
+             [0xCF, 0xF0, 0xE8, 0xE2, 0xE5, 0xF2, 0x0D, 0x0A].to_vec()),
+        ];
+        for (tag, bytes) in cases {
+            let p = temp_file(tag, &bytes);
+            assert!(sniff_is_text(&p), "expected TEXT for case '{}'", tag);
+            std::fs::remove_file(&p).ok();
+        }
+    }
+
+    #[test]
+    fn test_sniff_binary_variants() {
+        let mut zip_like = b"PK\x03\x04".to_vec();
+        zip_like.extend(std::iter::repeat(0u8).take(64)); // deflate stream full of NULs
+        let mut exe_like = b"MZ".to_vec();
+        exe_like.extend(std::iter::repeat(0u8).take(64));
+        let mut random_binary = Vec::new();
+        for i in 0..256u16 {
+            random_binary.push((i * 7 % 256) as u8); // ~25% control chars, no BOM
+        }
+        let cases: Vec<(&str, Vec<u8>)> = vec![
+            ("zip", zip_like),
+            ("exe", exe_like),
+            ("random", random_binary),
+            ("controls_no_nul", vec![0x01u8; 100]), // dense control chars, no NUL
+        ];
+        for (tag, bytes) in cases {
+            let p = temp_file(tag, &bytes);
+            assert!(!sniff_is_text(&p), "expected BINARY for case '{}'", tag);
+            std::fs::remove_file(&p).ok();
+        }
+    }
+
+    #[test]
+    fn test_inspect_category_for_extensionless_text() {
+        // "config" with no extension inside a temp dir (like .git/config).
+        let dir = std::env::temp_dir().join(format!("peekit_test_dir_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cfg = dir.join("config");
+        std::fs::write(&cfg, b"[core]\n\trepositoryformatversion = 0\n").unwrap();
+
+        let info = inspect_file(cfg.to_str().unwrap()).unwrap();
+        assert_eq!(info.category, "text");
+
+        // Binary lookalike ("index" like .git/index) must stay generic.
+        let idx = dir.join("index");
+        let mut bin = b"DIRC".to_vec();
+        bin.extend(std::iter::repeat(0u8).take(64));
+        std::fs::write(&idx, &bin).unwrap();
+        let info = inspect_file(idx.to_str().unwrap()).unwrap();
+        assert_eq!(info.category, "generic");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn test_read_text_utf16le_bom() {
+        let mut bytes = b"\xFF\xFE".to_vec();
+        for unit in "hello = world".encode_utf16() {
+            bytes.extend_from_slice(&unit.to_le_bytes());
+        }
+        let p = temp_file("utf16read", &bytes);
+        let text = read_file_text_capped(p.to_str().unwrap(), 1024 * 1024).unwrap();
+        assert_eq!(text, "hello = world");
+        std::fs::remove_file(&p).ok();
     }
 }

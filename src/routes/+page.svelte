@@ -48,6 +48,8 @@
   let unlistenClose: (() => void) | null = null;
   let unlistenSettings: (() => void) | null = null;
   let unlistenGroup: (() => void) | null = null;
+  let saveFlash = false;
+  let pendingCloseTimer: number | null = null;
 
   let fileGroup: string[] = [];
   let groupIndex: number = 0;
@@ -124,12 +126,6 @@
     }
   }
 
-  async function handleDragMouseDown(e: MouseEvent) {
-    if (e.button === 0) {
-      await invokeTauri('start_drag_window');
-    }
-  }
-
   async function closeWindow() {
     currentFile = null;
     activePlugin = undefined;
@@ -186,9 +182,24 @@
 
   const handleWindowBlur = () => {
     if (settings.closeOnFocusLoss && !isSettingsOpen && !isPinned && currentFile) {
-      closeWindow();
+      // Clicking inside a plugin iframe also fires window.blur while OS focus
+      // stays on our window. Close only when focus truly left the app.
+      if (pendingCloseTimer !== null) window.clearTimeout(pendingCloseTimer);
+      pendingCloseTimer = window.setTimeout(() => {
+        pendingCloseTimer = null;
+        if (!document.hasFocus()) {
+          closeWindow();
+        }
+      }, 100);
     }
   };
+
+  function cancelPendingClose() {
+    if (pendingCloseTimer !== null) {
+      window.clearTimeout(pendingCloseTimer);
+      pendingCloseTimer = null;
+    }
+  }
 
   async function saveSettings(updated: AppSettings) {
     settings = { ...updated };
@@ -212,7 +223,11 @@
     }
 
     await invokeTauri('save_app_config', { config: updated });
-    handleCloseSettings();
+
+    // Feedback only: the dialog stays open so the user can adjust other tabs.
+    // Closing is done via the Close button, the header X or Escape.
+    saveFlash = true;
+    window.setTimeout(() => (saveFlash = false), 2500);
   }
 
   onMount(async () => {
@@ -255,6 +270,7 @@
     try {
       unlistenPreview = await listen<string>('preview_file', async (event) => {
         if (event.payload) {
+          cancelPendingClose();
           await loadFileInfo(event.payload);
         }
       });
@@ -323,7 +339,6 @@
       <div
         class="drag-handle"
         data-tauri-drag-region
-        on:mousedown={handleDragMouseDown}
         title={t('drag_window', settings.language)}
         role="button"
         tabindex="-1"
@@ -359,13 +374,13 @@
     <div class="actions-toolbar">
       {#if fileGroup.length > 1}
         <div class="group-carousel-nav">
-          <button class="carousel-nav-btn" on:click={prevGroupItem} title="Предыдущий файл (← / ↑)">
+          <button class="carousel-nav-btn" on:click={prevGroupItem} title={settings.language === 'ru' ? 'Предыдущий файл (← / ↑)' : settings.language === 'zh' ? '上一个文件（← / ↑）' : 'Previous file (← / ↑)'}>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="15 18 9 12 15 6" />
             </svg>
           </button>
           <span class="group-counter">{groupIndex + 1} / {fileGroup.length}</span>
-          <button class="carousel-nav-btn" on:click={nextGroupItem} title="Следующий файл (→ / ↓)">
+          <button class="carousel-nav-btn" on:click={nextGroupItem} title={settings.language === 'ru' ? 'Следующий файл (→ / ↓)' : settings.language === 'zh' ? '下一个文件（→ / ↓）' : 'Next file (→ / ↓)'}>
             <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="9 18 15 12 9 6" />
             </svg>
@@ -512,6 +527,7 @@
       isOpen={isSettingsOpen}
       initialTab={settingsInitialTab}
       initialSubtab={settingsInitialSubtab}
+      saveFlash={saveFlash}
       onClose={handleCloseSettings}
       onSave={saveSettings}
     />
@@ -540,6 +556,11 @@
     background: var(--bg-card);
     border-bottom: 1px solid var(--border-color);
     flex-shrink: 0;
+    cursor: grab;
+  }
+
+  .topbar:active {
+    cursor: grabbing;
   }
 
   .file-title-group {
@@ -548,6 +569,9 @@
     gap: 12px;
     min-width: 0;
     user-select: none;
+    /* Let mousedown fall through to the topbar drag region so the whole
+       title bar drags the window, not just the tiny grip. */
+    pointer-events: none;
   }
 
   .drag-handle {
@@ -556,23 +580,11 @@
     justify-content: center;
     width: 20px;
     height: 28px;
-    cursor: grab;
     color: var(--text-muted);
     opacity: 0.55;
     transition: opacity 0.15s ease, color 0.15s ease, transform 0.1s ease;
     user-select: none;
-    -webkit-app-region: drag;
     margin-right: -4px;
-  }
-
-  .drag-handle:hover {
-    opacity: 1;
-    color: var(--accent);
-  }
-
-  .drag-handle:active {
-    cursor: grabbing;
-    transform: scale(0.95);
   }
 
   .app-icon {
@@ -617,6 +629,13 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    /* Wrappers let mousedown fall through to the topbar drag region;
+       interactive children re-enable pointer events explicitly. */
+    pointer-events: none;
+  }
+
+  .actions-toolbar > * {
+    pointer-events: auto;
   }
 
   .group-carousel-nav {

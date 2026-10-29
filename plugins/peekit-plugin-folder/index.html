@@ -761,6 +761,29 @@
           hintNav: 'Navigate',
           hintEsc: 'Clear',
           limitBadge: '1000+ items'
+        },
+        zh: {
+          folderDefault: '文件夹',
+          folders: '个文件夹',
+          files: '个文件',
+          total: '共计',
+          searchPlaceholder: '搜索... (/)',
+          colName: '名称',
+          colType: '类型',
+          colSize: '大小',
+          colDate: '修改时间',
+          emptyTitle: '未找到任何项目',
+          emptyDesc: '请尝试调整搜索关键词',
+          emptyFolder: '文件夹为空',
+          emptyFolderDesc: '此目录下没有文件或子文件夹',
+          openFile: '打开',
+          revealExplorer: '在资源管理器中显示',
+          copiedPath: '路径已复制到剪贴板！',
+          showingOf: '显示 {count} / {total} 项',
+          hintOpen: '打开',
+          hintNav: '导航',
+          hintEsc: '清除',
+          limitBadge: '1000+ 个项目'
         }
       };
 
@@ -852,7 +875,7 @@
       function handleInit(payload) {
         if (!payload) return;
         currentFolder = payload;
-        lang = (payload.language === 'ru' || payload.language === 'en') ? payload.language : 'ru';
+        lang = ['ru', 'en', 'zh'].includes(payload.language) ? payload.language : 'ru';
 
         if (payload.theme) {
           document.documentElement.setAttribute('data-theme', payload.theme);

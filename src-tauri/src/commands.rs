@@ -59,7 +59,7 @@ pub fn hide_preview_window(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-fn get_config_path() -> Result<std::path::PathBuf, String> {
+pub(crate) fn get_config_path() -> Result<std::path::PathBuf, String> {
     if let Ok(exe) = std::env::current_exe() {
         if let Some(exe_dir) = exe.parent() {
             if exe_dir.join("portable.txt").exists() {
@@ -118,7 +118,11 @@ pub fn get_app_config() -> Result<serde_json::Value, String> {
 }
 
 #[tauri::command]
-pub fn save_app_config(config: serde_json::Value) -> Result<(), String> {
+pub fn save_app_config(app: AppHandle, config: serde_json::Value) -> Result<(), String> {
+    let old_language = get_app_config()
+        .ok()
+        .and_then(|v| v.get("language").and_then(|x| x.as_str()).map(String::from));
+
     let config_path = get_config_path()?;
     if let Some(parent) = config_path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -142,6 +146,12 @@ pub fn save_app_config(config: serde_json::Value) -> Result<(), String> {
     let formatted = serde_json::to_string_pretty(&merged).map_err(|e| e.to_string())?;
     std::fs::write(&config_path, formatted).map_err(|e| e.to_string())?;
     crate::log_debug(&format!("Saved app config to {:?}", config_path));
+
+    // Live-update the tray menu when the UI language changed (no restart needed).
+    let new_language = merged.get("language").and_then(|v| v.as_str()).map(String::from);
+    if old_language != new_language {
+        crate::apply_tray_language(&app);
+    }
     Ok(())
 }
 
@@ -211,7 +221,7 @@ pub fn read_binary_for_plugin(path: String) -> Result<tauri::ipc::Response, Stri
 }
 
 #[tauri::command]
-pub fn set_plugin_enabled(id: String, enabled: bool) -> Result<(), String> {
+pub fn set_plugin_enabled(app: AppHandle, id: String, enabled: bool) -> Result<(), String> {
     let mut config = get_app_config().unwrap_or_else(|_| serde_json::json!({}));
     let mut disabled: Vec<String> = config
         .get("disabledPlugins")
@@ -233,7 +243,7 @@ pub fn set_plugin_enabled(id: String, enabled: bool) -> Result<(), String> {
         obj.insert("disabledPlugins".to_string(), serde_json::json!(disabled));
     }
 
-    save_app_config(config)
+    save_app_config(app, config)
 }
 
 #[tauri::command]

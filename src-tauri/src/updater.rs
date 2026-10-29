@@ -136,8 +136,24 @@ pub fn query_github_latest_release() -> Result<UpdateCheckResult, String> {
 
 /// Displays a native Windows Toast notification about an available update.
 pub fn show_update_toast(version: &str) {
-    let title = "PeekIt — Доступно обновление";
-    let body = format!("Вышла новая версия {}. Откройте настройки программы для загрузки.", version);
+    let lang = crate::commands::get_app_config()
+        .ok()
+        .and_then(|c| c.get("language").and_then(|v| v.as_str()).map(|s| s.to_string()))
+        .unwrap_or_else(|| "ru".to_string());
+    let (title, body) = match lang.as_str() {
+        "en" => (
+            "PeekIt — Update available".to_string(),
+            format!("New version {} is out. Open the app settings to download it.", version),
+        ),
+        "zh" => (
+            "PeekIt — 有可用更新".to_string(),
+            format!("新版本 {} 已发布。请打开应用设置进行下载。", version),
+        ),
+        _ => (
+            "PeekIt — Доступно обновление".to_string(),
+            format!("Вышла новая версия {}. Откройте настройки программы для загрузки.", version),
+        ),
+    };
 
     let script = format!(
         r#"
@@ -212,7 +228,7 @@ pub fn check_updates_with_cooldown(app: &AppHandle, force: bool) -> Result<Updat
         }
     }
 
-    let _ = crate::commands::save_app_config(patch);
+    let _ = crate::commands::save_app_config(app.clone(), patch);
     let _ = app.emit("update-status", &result);
 
     Ok(result)

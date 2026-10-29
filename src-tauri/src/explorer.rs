@@ -179,10 +179,33 @@ unsafe fn get_desktop_selected_file() -> Option<String> {
 
 #[cfg(windows)]
 pub fn get_selected_file_paths() -> Vec<String> {
+    get_selected_file_paths_for(None)
+}
+
+/// Same as `get_selected_file_paths`, but can target a remembered Explorer
+/// window instead of the foreground one — needed when Peekit itself owns the
+/// foreground, so the real shell window is addressed by its HWND.
+///
+/// STRICT mode: only an exact HWND match between the query target and the
+/// enumerated shell window returns files. The legacy title-match/fallback
+/// heuristics are intentionally disabled here — with several Explorer windows
+/// open they routinely return another window's selection, which broke
+/// continuous preview and the live watcher.
+#[cfg(windows)]
+pub fn get_selected_file_paths_for(target_hwnd: Option<isize>) -> Vec<String> {
     unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
-        let fg_hwnd = GetForegroundWindow();
+        let fg_hwnd = match target_hwnd {
+            Some(raw) => {
+                let hwnd = HWND(raw as *mut std::ffi::c_void);
+                if hwnd.0 == (0 as _) || !IsWindow(hwnd).as_bool() {
+                    return Vec::new();
+                }
+                hwnd
+            }
+            None => GetForegroundWindow(),
+        };
         if fg_hwnd.0 == (0 as _) {
             return Vec::new();
         }
@@ -221,9 +244,6 @@ pub fn get_selected_file_paths() -> Vec<String> {
                     target_hwnd, class_str, fg_title, count
                 ));
 
-                let mut title_match_files: Vec<String> = Vec::new();
-                let mut fallback_files: Vec<String> = Vec::new();
-
                 for i in 0..count {
                     if let Ok(dispatch) = windows.Item(&VARIANT::from(i)) {
                         let mut is_hwnd_match = false;
@@ -240,37 +260,19 @@ pub fn get_selected_file_paths() -> Vec<String> {
                                 .unwrap_or_default();
                         }
 
+                        if !is_hwnd_match {
+                            continue;
+                        }
+
                         let files = get_all_files_from_dispatch(&dispatch);
                         if !files.is_empty() {
                             crate::log_debug(&format!(
-                                "item {}: is_hwnd_match={}, loc='{}', count={}",
-                                i, is_hwnd_match, loc_name, files.len()
+                                "item {}: EXACT HWND match (loc='{}'), returning {} files",
+                                i, loc_name, files.len()
                             ));
-
-                            if is_hwnd_match {
-                                crate::log_debug(&format!("Exact HWND match! Returning {} files", files.len()));
-                                return files;
-                            }
-
-                            if title_match_files.is_empty() && !loc_name.is_empty() && !fg_title.is_empty() {
-                                if fg_title.contains(&loc_name) || loc_name.contains(&fg_title) {
-                                    title_match_files = files.clone();
-                                }
-                            }
-
-                            if fallback_files.is_empty() {
-                                fallback_files = files;
-                            }
+                            return files;
                         }
                     }
-                }
-
-                if !title_match_files.is_empty() {
-                    return title_match_files;
-                }
-
-                if !fallback_files.is_empty() {
-                    return fallback_files;
                 }
             }
             Err(e) => {
@@ -278,7 +280,10 @@ pub fn get_selected_file_paths() -> Vec<String> {
             }
         }
 
-        get_desktop_selected_files()
+        // No exact match (window closed, minimized to none, or not a shell
+        // window) — return nothing rather than guessing another window's
+        // selection.
+        Vec::new()
     }
 }
 
@@ -388,6 +393,11 @@ pub fn is_user_typing_text() -> bool {
 
 #[cfg(not(windows))]
 pub fn get_selected_file_paths() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(not(windows))]
+pub fn get_selected_file_paths_for(_target_hwnd: Option<isize>) -> Vec<String> {
     Vec::new()
 }
 

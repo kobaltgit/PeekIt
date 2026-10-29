@@ -63,7 +63,7 @@ export interface FilePreviewInfo {
 }
 
 export type AppTheme = 'dark' | 'light' | 'system';
-export type AppLanguage = 'ru' | 'en';
+export type AppLanguage = 'ru' | 'en' | 'zh';
 
 export interface AppSettings {
   language: AppLanguage;

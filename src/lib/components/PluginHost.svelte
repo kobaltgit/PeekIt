@@ -13,6 +13,9 @@
 
   let { plugin, file, theme, language }: Props = $props();
 
+  const L = (ru: string, en: string, zh: string): string =>
+    language === 'ru' ? ru : language === 'zh' ? zh : en;
+
   let iframeElement = $state<HTMLIFrameElement | null>(null);
   let isReady = $state(false);
   let errorMessage = $state<string | null>(null);
@@ -63,7 +66,7 @@
         const uint8 = new Uint8Array(raw);
         buffer = uint8.buffer;
       } else {
-        throw new Error('Некорректный формат бинарных данных от хоста');
+        throw new Error(L('Некорректный формат бинарных данных от хоста', 'Invalid binary data format from host', '主机返回的二进制数据格式无效'));
       }
 
       sendToPlugin(
@@ -179,7 +182,7 @@
     <div class="plugin-error-banner">
       <div class="error-icon">⚠️</div>
       <div class="error-info">
-        <div class="error-title">Ошибка плагина "{plugin.manifest.name}"</div>
+        <div class="error-title">{L(`Ошибка плагина "${plugin.manifest.name}"`, `Plugin error: "${plugin.manifest.name}"`, `插件「${plugin.manifest.name}」出错`)}</div>
         <div class="error-desc">{errorMessage}</div>
       </div>
     </div>
